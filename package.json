@@ -1,0 +1,36 @@
+{
+  "name": "uxd-arb-scanner",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "start": "node dist/index.js",
+    "dev": "nodemon dist/index.js"
+  },
+  "keywords": [],
+  "author": "dmc0125",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^17.0.33",
+    "@types/node-fetch": "^2.6.1",
+    "@typescript-eslint/eslint-plugin": "^5.23.0",
+    "@typescript-eslint/parser": "^5.23.0",
+    "eslint": "^8.15.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "nodemon": "^2.0.16",
+    "typescript": "^4.6.4"
+  },
+  "dependencies": {
+    "@blockworks-foundation/mango-client": "^3.4.7",
+    "@jup-ag/core": "^1.0.0-beta.24",
+    "@solana/web3.js": "^1.41.10",
+    "@uxd-protocol/uxd-client": "^1.0.0",
+    "bs58": "^5.0.0",
+    "discord.js": "^13.7.0",
+    "dotenv": "^16.0.1",
+    "node-fetch": "^2.6.7"
+  }
+}
