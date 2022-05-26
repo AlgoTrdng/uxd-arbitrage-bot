@@ -22,7 +22,7 @@ const keyPair = Keypair.fromSecretKey(decodedPrivateKey)
 
 const config: Config = {
   CLUSTER: 'mainnet',
-  MIN_ARB_PERCENTAGE: 0,
+  MIN_ARB_PERCENTAGE: 0.2,
   LOG: true,
 
   SOLANA_RPC_ENDPOINT: SOL_RPC_ENDPOINT,

@@ -28,11 +28,14 @@ export class Discord {
     return new Discord(client, channel)
   }
 
-  async sendArbNotification(amounts: { oldUxdUiAmount: number, newUxdUiAmount: number }) {
+  async sendArbMsg(amounts: { oldUxdUiAmount: number, newUxdUiAmount: number }, success: boolean) {
     const { oldUxdUiAmount, newUxdUiAmount } = amounts
     const profit = (newUxdUiAmount / oldUxdUiAmount - 1) * 100
+    const description = success
+      ? 'Successfully executed **REDEEM** arbitrage'
+      : 'Unsuccessfully executed **REDEEM** arbitrage, redemption failed'
     const embed = new MessageEmbed({
-      description: 'Executed **REDEEM** arbitrage',
+      description,
       fields: [
         {
           name: 'Old amount',
