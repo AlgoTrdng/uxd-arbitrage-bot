@@ -32,5 +32,6 @@ module.exports = {
     'no-param-reassign': 0,
     'import/prefer-default-export': 0,
     'lines-between-class-members': 0,
+    'no-await-in-loop': 0,
   },
 }

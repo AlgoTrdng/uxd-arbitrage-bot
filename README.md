@@ -7,10 +7,9 @@
 ```js
 const config: Config = {
   ...,
-  SOLANA_RPC_ENDPOINT: '', // solana RPC endpoint
   CLUSTER: '', // mainnet
   MIN_ARB_PERCENTAGE: number, // minimum price percentage - 0.2 is 0.2%
-  LOG: boolean // If true log app status, and errors
+  LOG: boolean, // if true, will log bot updates like status, swaps and redemptions
   ...,
 }
 
@@ -19,8 +18,9 @@ const config: Config = {
 - Set env variables in `.env`
 
 ```env
+SOL_RPC_ENDPOINT=solana RPC endpoint url
 SOL_PRIVATE_KEY=solana private key as string
 SOL_PUBLIC_KEY=solana public key (solana address)
 DISCORD_TOKEN=Discord BOT token secret
-DISCORD_CHANNEL=Discord channel ID
+DISCORD_CHANNEL_ID=Discord channel ID
 ```

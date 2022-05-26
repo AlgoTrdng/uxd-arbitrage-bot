@@ -5,19 +5,27 @@ import {
 import config from '../app.config'
 import { logger } from './utils/logger'
 
-class Discord {
-  client = new Client({ intents: [Intents.FLAGS.DIRECT_MESSAGES] })
-  channel: TextChannel | null = null
+export class Discord {
+  client: Client
+  channel: TextChannel
 
-  async init() {
+  constructor(client: Client, channel: TextChannel) {
+    this.client = client
+    this.channel = channel
+
     this.client.on('ready', () => {
       logger('STATUS', 'Discord client ready!')
     })
+  }
 
-    await this.client.login(config.DISCORD_TOKEN)
-    this.channel = await this.client.channels.fetch(config.DISCORD_CHANNEL) as TextChannel
+  static async init() {
+    const client = new Client({ intents: [Intents.FLAGS.DIRECT_MESSAGES] })
+    await client.login(config.DISCORD_TOKEN)
 
-    await this.channel.send('Arbitrage bot started, SETUP ready, scanning for arbitrage.')
+    const channel = await client.channels.fetch(config.DISCORD_CHANNEL_ID) as TextChannel
+    await channel.send('Arbitrage bot started, SETUP ready, scanning for arbitrage.')
+
+    return new Discord(client, channel)
   }
 
   async sendArbNotification(amounts: { oldUxdUiAmount: number, newUxdUiAmount: number }) {
@@ -49,5 +57,3 @@ class Discord {
     await this.channel?.send({ embeds: [embed] })
   }
 }
-
-export default Discord

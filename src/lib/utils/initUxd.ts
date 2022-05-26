@@ -9,12 +9,20 @@ import {
   UXDClient,
   Controller,
   UXD_DECIMALS,
+  Mango,
 } from '@uxd-protocol/uxd-client'
 
 import config from '../../app.config'
 import { program } from '../constants'
 
-export const initUxd = async (connection: Connection) => {
+export type UxdConfig = {
+  controller: Controller,
+  uxdMango: Mango,
+  depository: MangoDepository,
+  client: UXDClient,
+}
+
+export const initUxd = async (connection: Connection): Promise<UxdConfig> => {
   const controller = new Controller('UXD', UXD_DECIMALS, program.UXD)
   const uxdMango = await createAndInitializeMango(connection, config.CLUSTER as 'mainnet')
   const depository = new MangoDepository(WSOL, 'SOL', SOL_DECIMALS, USDC, 'USDC', USDC_DECIMALS, program.UXD)

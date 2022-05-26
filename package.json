@@ -1,7 +1,6 @@
 {
-  "name": "uxd-arb-scanner",
-  "version": "0.0.1",
-  "description": "",
+  "name": "uxd-arb-bot",
+  "version": "0.0.2",
   "main": "index.js",
   "scripts": {
     "build": "tsc",

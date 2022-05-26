@@ -10,12 +10,13 @@ export type Config = {
   SOL_PUBLIC_KEY: PublicKey
 
   DISCORD_TOKEN: string
-  DISCORD_CHANNEL: string
+  DISCORD_CHANNEL_ID: string
 }
 
 export type EnvConfig = {
+  SOL_RPC_ENDPOINT: string
   SOL_PRIVATE_KEY: string
   SOL_PUBLIC_KEY: string
   DISCORD_TOKEN: string
-  DISCORD_CHANNEL: string
+  DISCORD_CHANNEL_ID: string
 }
