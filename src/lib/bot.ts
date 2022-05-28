@@ -75,12 +75,11 @@ export class Bot {
   /**
    * @description Start arbitrage, initialize websocket connections
    */
-  async startWatchingForArbitrage() {
-    this.watchAccountChange()
+  async startBot() {
     this.mangoWatcher.watchSolPerpAsks()
 
     const watchJupiter = async () => {
-      if (this.mangoWatcher.asks.length && this.wallet.uxdBalance) {
+      if (this.mangoWatcher.asks.length) {
         const priceDiff = await this.getPriceDiff()
         this.priceDiff.value = priceDiff
       }
@@ -90,6 +89,34 @@ export class Bot {
 
     // Wait for all connections to establish
     setTimeout(watchJupiter, 1000 * 10)
+    this.watchForRemainingSol()
+  }
+
+  /**
+   * @description Watch for remaining SOL after arbitrage fails due to low price diff but transaction goes through
+   */
+  watchForRemainingSol() {
+    const TIMEOUT = 20_000
+
+    const checkRemainingSol = async () => {
+      if (this.arbStatus.executing) {
+        setTimeout(checkRemainingSol, TIMEOUT)
+        return
+      }
+
+      await this.wallet.fetchLamportsBalance()
+
+      if (this.wallet.lamportsBalance > MIN_LAMPORTS_BALANCE) {
+        await this.swapSolForUxd(this.wallet.lamportsBalance)
+        await this.wallet.fetchUxdBalance()
+        this.sendPostArbMessage(false)
+        this.arbStatus.startAmount = 0
+      }
+
+      setTimeout(checkRemainingSol, TIMEOUT)
+    }
+
+    setTimeout(checkRemainingSol, TIMEOUT)
   }
 
   /**
@@ -117,22 +144,6 @@ export class Bot {
   }
 
   /**
-   * @description Initialize account change listener, swaps SOL for UXD when arbitrage fails due to low price diff but transaction goes through
-   */
-  watchAccountChange() {
-    this.connection.onAccountChange(config.SOL_PUBLIC_KEY, async (accountInfo) => {
-      const { lamports } = accountInfo
-
-      if (lamports > MIN_LAMPORTS_BALANCE && !this.arbStatus.executing) {
-        await this.swapSolForUxd()
-        await this.wallet.fetchUxdBalance()
-        this.sendPostArbMessage(false)
-        this.arbStatus.startAmount = 0
-      }
-    })
-  }
-
-  /**
    * @description Returns false if priceDiff is lower than MIN_ARB_PERCENTAGE
    */
   async redeemUxd() {
@@ -156,7 +167,7 @@ export class Bot {
       await wait(500)
 
       const preRedemptionLamportsBalance = await wallet.fetchLamportsBalance()
-      // If new uxd balance is lower than old uxd balance, redemption was successful
+      // If new lamports balance is higher than old lamports balance, redemption was successful
       if (wallet.lamportsBalance > preRedemptionLamportsBalance) {
         return true
       }
@@ -178,10 +189,12 @@ export class Bot {
   /**
    * @description Swap SOL for UXD, repeat swap until it is successful
    */
-  async swapSolForUxd() {
+  async swapSolForUxd(lamportsBalance?: number) {
     const { arbitrage, wallet } = this
 
-    await wallet.fetchLamportsBalance()
+    if (!lamportsBalance) {
+      await wallet.fetchLamportsBalance()
+    }
 
     // If SOL balance is less 0.11 (minimum account SOL balance), refetch
     while (wallet.lamportsBalance < MIN_LAMPORTS_BALANCE) {
@@ -194,7 +207,28 @@ export class Bot {
 
     while (!result) {
       await wait(500)
+
+      await wallet.fetchWrappedLamportsBalance()
+      if (wallet.wrappedLamportsBalance) {
+        await this.closeWrappedSolAccount()
+        // eslint-disable-next-line no-continue
+        continue
+      }
+
       result = await arbitrage.swapSolForUxd(safeSolAmount)
+    }
+  }
+
+  async closeWrappedSolAccount() {
+    const { wallet } = this
+
+    const success = wallet.closeWrappedSolAccount()
+    if (!success) {
+      await wallet.fetchWrappedLamportsBalance()
+
+      if (wallet.wrappedLamportsBalance) {
+        await this.closeWrappedSolAccount()
+      }
     }
   }
 
@@ -215,9 +249,8 @@ export class Bot {
     const { jupiterWatcher, mangoWatcher, wallet } = this
 
     const uxdBalance = Wallet.getUiBalance(wallet.uxdBalance, 'UXD')
-
-    const jupiterSolPrice = await jupiterWatcher.getSolToUxdPrice()
-    const perpSolPrice = MangoWatcher.getSolPerpPrice(uxdBalance, mangoWatcher.asks)
+    const [perpSolPrice, solAmount] = MangoWatcher.getSolPerpPrice(uxdBalance, mangoWatcher.asks)
+    const jupiterSolPrice = await jupiterWatcher.getSolToUxdPrice(solAmount)
 
     const _priceDiff = (jupiterSolPrice / perpSolPrice - 1).toFixed(4)
     return +_priceDiff * 100

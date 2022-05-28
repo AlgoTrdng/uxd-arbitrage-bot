@@ -8,6 +8,7 @@ import {
   PerpMarket,
 } from '@blockworks-foundation/mango-client'
 import { PublicKey, Connection } from '@solana/web3.js'
+import { SOL_DECIMALS } from '@uxd-protocol/uxd-client'
 
 const MANGO_GROUP = 'mainnet.1'
 
@@ -92,12 +93,12 @@ export class MangoWatcher {
     return buys
   }
 
-  private static calculateAveragePrice(buys: Buys) {
+  private static calculateAveragePrice(buys: Buys): [number, number] {
     const total = buys.reduce((_totalCost, { price, amount }) => ({
       cost: _totalCost.cost + price * amount,
       amount: _totalCost.amount + amount,
     }), { cost: 0, amount: 0 })
-    return total.cost / total.amount
+    return [total.cost / total.amount, +total.amount.toFixed(SOL_DECIMALS)]
   }
 
   static getSolPerpPrice(uxdBalance: number, asks: Asks) {

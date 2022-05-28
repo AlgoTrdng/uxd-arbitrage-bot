@@ -20,7 +20,6 @@ const config: Config = {
 ```env
 SOL_RPC_ENDPOINT=solana RPC endpoint url
 SOL_PRIVATE_KEY=solana private key as string
-SOL_PUBLIC_KEY=solana public key (solana address)
 DISCORD_TOKEN=Discord BOT token secret
 DISCORD_CHANNEL_ID=Discord channel ID
 ```

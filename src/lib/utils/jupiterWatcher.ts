@@ -26,12 +26,12 @@ export class JupiterWatcher {
     return new JupiterWatcher(connection, jupiter)
   }
 
-  async getSolToUxdPrice() {
+  async getSolToUxdPrice(inputSolAmount: number) {
     const routes = await this.jupiter!.computeRoutes({
       inputMint: mint.SOL,
       outputMint: mint.UXD,
       slippage: 0.5,
-      inputAmount: 10 * (10 ** SOL_DECIMALS),
+      inputAmount: inputSolAmount * (10 ** SOL_DECIMALS),
     })
     const [bestRouteInfo] = routes.routesInfos
 
