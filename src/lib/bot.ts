@@ -259,7 +259,7 @@ export class Bot {
   static async init() {
     const connection = new Connection(config.SOLANA_RPC_ENDPOINT, 'confirmed')
 
-    const mangoWatcher = await MangoWatcher.init(connection)
+    const mangoWatcher = await MangoWatcher.init()
     const jupiterWatcher = await JupiterWatcher.init(connection)
 
     const arbitrage = await Arbitrage.init({ connection, jupiter: jupiterWatcher.jupiter })
