@@ -36,7 +36,7 @@ export class MangoWatcher {
   }
 
   static async init() {
-    const connection = new Connection(MANGO_RPC, 'confirmed')
+    const connection = new Connection(MANGO_RPC, 'processed')
     const config = new Config(IDS)
     const groupConfig = config.getGroupWithName(MANGO_GROUP)!
     const client = new MangoClient(connection, groupConfig.mangoProgramId)
@@ -61,7 +61,6 @@ export class MangoWatcher {
     this.connection.onAccountChange(publicKey, (accountInfo) => {
       const asks = new BookSide(publicKey, perpMarket, BookSideLayout.decode(accountInfo.data))
       this.asks = asks.getL2Ui(5)
-      console.log(this.asks)
     })
   }
 
