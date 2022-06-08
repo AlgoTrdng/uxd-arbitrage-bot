@@ -1,120 +1,59 @@
 import { Connection, PublicKey } from '@solana/web3.js'
-// Using @ts-ignore because importing `getAssociatedTokenAddress` and `closeAccount` is throwing an error that it is not exported
-// @ts-ignore
-import { NATIVE_MINT, getAssociatedTokenAddress, closeAccount } from '@solana/spl-token'
-import { SOL_DECIMALS, UXD_DECIMALS } from '@uxd-protocol/uxd-client'
+import { AccountLayout } from '@solana/spl-token'
 
-import { CloseAccountReturnType } from './types/splToken'
 import config from '../app.config'
-import { mint } from './constants'
 
-const decimals = {
-  SOL: SOL_DECIMALS,
-  UXD: UXD_DECIMALS,
+type Balance = number | null
+
+export const fetchLamportsBalance = async (connection: Connection) => {
+  let lamports: Balance = null
+
+  while (lamports === null) {
+    try {
+      lamports = await connection.getBalance(config.SOL_PUBLIC_KEY)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  return lamports
 }
 
-export class Wallet {
-  connection: Connection
+export const fetchSplBalance = async (connection: Connection, mintAddress: PublicKey) => {
+  let balance: Balance = null
 
-  lamportsBalance = 0
-  uxdBalance = 0
-  wrappedLamportsBalance = 0
-
-  static wrappedSolAddress: PublicKey | null = null
-
-  static async init(connection: Connection) {
-    const wallet = new Wallet(connection)
-    await wallet.fetchUxdBalance()
-    await wallet.fetchLamportsBalance()
-    return wallet
-  }
-
-  constructor(connection: Connection) {
-    this.connection = connection
-  }
-
-  /**
-   * @description Fetches lamports balance
-   * @returns Lamports balance pre-fetch
-   */
-  async fetchLamportsBalance(): Promise<number> {
+  while (balance === null) {
     try {
-      const oldBalance = this.lamportsBalance
-      const lamports = await this.connection.getBalance(config.SOL_PUBLIC_KEY)
-      this.lamportsBalance = lamports
-
-      return oldBalance
-    } catch (error) {
-      return this.fetchLamportsBalance()
-    }
-  }
-
-  private async fetchSplBalance(mintAddress: PublicKey): Promise<number> {
-    try {
-      const response = await this.connection.getParsedTokenAccountsByOwner(config.SOL_PUBLIC_KEY, { mint: mintAddress })
-
+      const response = await connection.getParsedTokenAccountsByOwner(config.SOL_PUBLIC_KEY, { mint: mintAddress })
       // Account does not exist
       if (!response.value[0]) {
-        return 0
+        continue
       }
-
       const { amount } = response.value[0].account.data.parsed.info.tokenAmount
-      return amount as number
+
+      balance = amount
     } catch (error) {
-      return this.fetchSplBalance(mintAddress)
+      console.log(error)
     }
   }
 
-  /**
-   * @description Fetches UXD balance
-   * @returns UXD balance pre-fetch
-   */
-  async fetchUxdBalance(): Promise<number> {
-    const amount = await this.fetchSplBalance(mint.UXD)
-    const oldBalance = this.uxdBalance
-    this.uxdBalance = amount
+  return balance
+}
 
-    return oldBalance
-  }
+export const watchLamportsBalance = (connection: Connection, publicKey: PublicKey, cb: (amount: number) => void) => {
+  connection.onAccountChange(publicKey, (accountInfo) => {
+    cb.call(null, accountInfo.lamports)
+  })
+}
 
-  async fetchWrappedLamportsBalance(): Promise<number> {
-    const amount = await this.fetchSplBalance(mint.SOL)
-    const oldBalance = this.wrappedLamportsBalance
-    this.wrappedLamportsBalance = amount
-
-    return oldBalance
-  }
-
-  static getUiBalance(balance: number, token: keyof typeof decimals) {
-    return balance / (10 ** decimals[token])
-  }
-
-  static async getWrappedSolPublicKey() {
-    if (Wallet.wrappedSolAddress) {
-      return Wallet.wrappedSolAddress
-    }
-
-    const wrappedSoLPublicKey = await getAssociatedTokenAddress(
-      NATIVE_MINT,
-      config.SOL_PUBLIC_KEY,
-    ) as PublicKey
-    Wallet.wrappedSolAddress = wrappedSoLPublicKey
-    return wrappedSoLPublicKey
-  }
-
-  async closeWrappedSolAccount() {
-    console.log('Closing WSOL Account')
-    const wrappedSoLPublicKey = await Wallet.getWrappedSolPublicKey()
+export const watchSplBalance = (connection: Connection, publicKey: PublicKey, cb: (amount: number) => void) => {
+  connection.onAccountChange(publicKey, (accountInfo) => {
     try {
-      return closeAccount(
-        this.connection,
-        config.SOL_PRIVATE_KEY,
-        wrappedSoLPublicKey,
-        config.SOL_PUBLIC_KEY,
-        config.SOL_PRIVATE_KEY,
-      ) as CloseAccountReturnType
+      const decodedData = AccountLayout.decode(accountInfo.data)
+      cb.call(null, decodedData.amount)
     } catch (error) {
-      return null
+      console.log(error, accountInfo)
+      throw Error('Error with decoding spl data')
     }
-  }
+  })
 }

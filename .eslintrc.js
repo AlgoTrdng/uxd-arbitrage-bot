@@ -33,5 +33,9 @@ module.exports = {
     'import/prefer-default-export': 0,
     'lines-between-class-members': 0,
     'no-await-in-loop': 0,
+    'no-useless-constructor': 0,
+    'no-unused-vars': 'warn',
+    'no-empty-function': 0,
+    'no-continue': 0,
   },
 }
