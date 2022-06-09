@@ -6,7 +6,7 @@ import { SwapResult } from './types'
 import config from '../../app.config'
 import { mint } from '../../constants'
 
-const { SOL_PRIVATE_KEY, CLUSTER } = config
+const { SOL_PRIVATE_KEY, cluster } = config
 
 export class JupiterWrapper {
   connection: Connection
@@ -55,7 +55,7 @@ export class JupiterWrapper {
 
   static async init(connection: Connection) {
     const jupiter = await Jupiter.load({
-      cluster: `${CLUSTER}-beta` as 'mainnet-beta',
+      cluster: `${cluster}-beta` as 'mainnet-beta',
       user: SOL_PRIVATE_KEY,
       connection,
     })

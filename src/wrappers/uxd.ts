@@ -43,7 +43,7 @@ export class UxdWrapper {
 
   static async init(connection: Connection) {
     const controller = new Controller('UXD', UXD_DECIMALS, program.UXD)
-    const mango = await createAndInitializeMango(connection, config.CLUSTER as 'mainnet')
+    const mango = await createAndInitializeMango(connection, config.cluster as 'mainnet')
     const depository = new MangoDepository(WSOL, 'SOL', SOL_DECIMALS, USDC, 'USDC', USDC_DECIMALS, program.UXD)
     const client = new UXDClient(program.UXD)
 

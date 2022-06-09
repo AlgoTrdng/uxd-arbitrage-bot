@@ -9,8 +9,7 @@ import { getUiAmount } from '../lib/utils/amount'
 import { UxdWrapper } from '../wrappers/uxd'
 import { swapSolToUxd, swapWSolToSol } from '../lib/actions/swap'
 import { wait } from '../lib/utils/wait'
-
-const MIN_PRICE_DIFF = 0.2
+import config from '../app.config'
 
 /**
  * @returns Price diff percentage
@@ -37,7 +36,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     const uxdUiBalance = getUiAmount(state.uxdChainBalance, UXD_DECIMALS)
     const priceDiff = await calculatePriceDiff(uxdUiBalance, mangoWrapper, jupiterWrapper)
 
-    if (priceDiff > MIN_PRICE_DIFF) {
+    if (priceDiff > config.minimumPriceDiff) {
       state.appStatus.value = 'inArbitrage'
       const startBalance = state.uxdChainBalance
 

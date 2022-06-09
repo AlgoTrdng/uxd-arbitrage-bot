@@ -7,7 +7,7 @@ const messageSigns = {
 }
 
 export const logger = (type: keyof typeof messageSigns, message: string) => {
-  if (config.LOG) {
+  if (config.log) {
     console.log(`${messageSigns[type]} - ${type}: ${message}`)
   }
 }

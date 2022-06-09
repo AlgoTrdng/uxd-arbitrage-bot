@@ -1,0 +1,5 @@
+{
+  "minimumPriceDiff": 0.2,
+  "cluster": "mainnet",
+  "log": true
+}
