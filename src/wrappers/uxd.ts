@@ -16,7 +16,6 @@ import {
 
 import config from '../app.config'
 import { program } from '../constants'
-import { getChainAmount } from '../lib/utils/amount'
 
 export class UxdWrapper {
   constructor(
@@ -29,7 +28,7 @@ export class UxdWrapper {
   createRedeemTransaction(uxdUiBalance: number) {
     const transaction = new Transaction()
     const redeemIx = this.client.createRedeemFromMangoDepositoryInstruction(
-      getChainAmount(uxdUiBalance, UXD_DECIMALS),
+      uxdUiBalance,
       5,
       this.controller,
       this.depository,

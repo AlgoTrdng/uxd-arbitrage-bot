@@ -1,10 +1,12 @@
-// import { Bot } from './lib/bot'
+import { Connection } from '@solana/web3.js'
 
-// (async () => {
-//   try {
-//     const bot = await Bot.init()
-//     bot.startBot()
-//   } catch (error) {
-//     console.log(error)
-//   }
-// })()
+import { startArbitrageLoop } from './bot/arbitrage'
+import { initBalances } from './bot/balance'
+import config from './app.config'
+
+(async () => {
+  const connection = new Connection(config.SOL_RPC_ENDPOINT, 'confirmed')
+
+  await initBalances(connection)
+  await startArbitrageLoop(connection, 10_000)
+})()
