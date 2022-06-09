@@ -23,9 +23,12 @@ type PerpMarketConfig = {
  */
 type Asks = [number, number][]
 
-type Buys = { price: number; amount: number }[]
+/**
+ * @description Fill price and UI amount
+ */
+type Fills = { price: number; amount: number }[]
 
-export class MangoWatcher {
+export class MangoWrapper {
   connection: Connection
   perpMarketConfig: PerpMarketConfig
   asks: Asks = []
@@ -50,7 +53,7 @@ export class MangoWatcher {
       perpMarketConfig.quoteDecimals,
     )
 
-    return new MangoWatcher(connection, {
+    return new MangoWrapper(connection, {
       publicKey: perpMarketConfig.asksKey,
       perpMarket,
     })
@@ -64,16 +67,18 @@ export class MangoWatcher {
     })
   }
 
-  private static getPossibleBuys(uxdBalance: number, asks: Asks) {
-    let residualBalance = uxdBalance
-    const buys: Buys = []
+  private static getPossibleFills(uxdBalanceUi: number, asks: Asks) {
+    let residualBalance = uxdBalanceUi
+    const buys: Fills = []
 
     for (let i = 0; i < asks.length; i += 1) {
       const [price, amount] = asks[i]
       const solAmount = residualBalance / price
 
       // if solAmount is more than amount, max possible amount is ASK amount
-      const totalCost = solAmount > amount ? price * amount : solAmount * price
+      const totalCost = solAmount > amount
+        ? price * amount
+        : solAmount * price
 
       if (totalCost > residualBalance) {
         buys.push({
@@ -95,17 +100,34 @@ export class MangoWatcher {
     return buys
   }
 
-  private static calculateAveragePrice(buys: Buys): [number, number] {
-    const total = buys.reduce((_totalCost, { price, amount }) => ({
-      cost: _totalCost.cost + price * amount,
-      amount: _totalCost.amount + amount,
-    }), { cost: 0, amount: 0 })
-    return [total.cost / total.amount, +total.amount.toFixed(SOL_DECIMALS)]
+  /**
+   * @returns [AveragePrice, UiAmount]
+   */
+  private static getFillDetails(buys: Fills): [number, number] {
+    const total = buys
+      .reduce(
+        (_totalCost, { price, amount }) => ({
+          cost: _totalCost.cost + price * amount,
+          amount: _totalCost.amount + amount,
+        }),
+        {
+          cost: 0,
+          amount: 0,
+        },
+      )
+
+    return [
+      total.cost / total.amount,
+      Number(total.amount.toFixed(SOL_DECIMALS)),
+    ]
   }
 
-  static getSolPerpPrice(uxdBalance: number, asks: Asks) {
-    const buys = MangoWatcher.getPossibleBuys(uxdBalance, asks)
-    const price = MangoWatcher.calculateAveragePrice(buys)
-    return price
+  /**
+   * @returns [AveragePrice, UiAmount]
+   */
+  static getSolPerpPrice(uxdBalanceUi: number, asks: Asks) {
+    const fills = MangoWrapper.getPossibleFills(uxdBalanceUi, asks)
+    const fillDetails = MangoWrapper.getFillDetails(fills)
+    return fillDetails
   }
 }

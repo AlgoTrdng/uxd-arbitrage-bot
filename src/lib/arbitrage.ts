@@ -16,7 +16,7 @@ import {
 
 import config from '../app.config'
 import { initUxd, UxdConfig } from './utils/initUxd'
-import { mint } from './constants'
+import { mint } from '../constants'
 import { logger } from './utils/logger'
 
 type _SwapResult = {

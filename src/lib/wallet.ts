@@ -2,6 +2,7 @@ import { Connection, PublicKey } from '@solana/web3.js'
 import { AccountLayout } from '@solana/spl-token'
 
 import config from '../app.config'
+import { wait } from './utils/wait'
 
 type Balance = number | null
 
@@ -13,6 +14,7 @@ export const fetchLamportsBalance = async (connection: Connection) => {
       lamports = await connection.getBalance(config.SOL_PUBLIC_KEY)
     } catch (error) {
       console.log(error)
+      await wait()
     }
   }
 
@@ -34,6 +36,7 @@ export const fetchSplBalance = async (connection: Connection, mintAddress: Publi
       balance = amount
     } catch (error) {
       console.log(error)
+      await wait()
     }
   }
 

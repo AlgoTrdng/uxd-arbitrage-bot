@@ -13,7 +13,7 @@ import {
 } from '@uxd-protocol/uxd-client'
 
 import config from '../../app.config'
-import { program } from '../constants'
+import { program } from '../../constants'
 
 export type UxdConfig = {
   controller: Controller,

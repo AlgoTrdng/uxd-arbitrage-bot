@@ -1,0 +1,65 @@
+import { Jupiter, RouteInfo } from '@jup-ag/core'
+import { Connection, PublicKey } from '@solana/web3.js'
+import { SOL_DECIMALS, UXD_DECIMALS } from '@uxd-protocol/uxd-client'
+
+import { SwapResult } from './types'
+import config from '../../app.config'
+import { mint } from '../../constants'
+
+const { SOL_PRIVATE_KEY, CLUSTER } = config
+
+export class JupiterWrapper {
+  connection: Connection
+  jupiter: Jupiter
+
+  constructor(connection: Connection, jupiter: Jupiter) {
+    this.connection = connection
+    this.jupiter = jupiter
+  }
+
+  /**
+   * @param inputAmount Chain amount of input token
+   */
+  async fetchBestRouteInfo(inputMint: PublicKey, outputMint: PublicKey, inputAmount: number, slippage = 0.5) {
+    const routes = await this.jupiter!.computeRoutes({
+      slippage,
+      inputAmount,
+      inputMint,
+      outputMint,
+    })
+    const [bestRouteInfo] = routes.routesInfos
+    return bestRouteInfo
+  }
+
+  /**
+   * @returns null if swap fails
+   */
+  async swap(route: RouteInfo) {
+    const { execute } = await this.jupiter.exchange({ routeInfo: route })
+    const swapResult = await execute()
+    // @ts-ignore
+    if (swapResult?.txid) {
+      return swapResult as SwapResult
+    }
+    return null
+  }
+
+  async getSolToUxdPrice(solUiAmount: number) {
+    const bestRouteInfo = await this.fetchBestRouteInfo(mint.SOL, mint.UXD, solUiAmount * (10 ** SOL_DECIMALS))
+
+    const solAmount = bestRouteInfo.inAmount / (10 ** SOL_DECIMALS)
+    const uxdAmount = bestRouteInfo.outAmount / (10 ** UXD_DECIMALS)
+    const solPrice = uxdAmount / solAmount
+    return solPrice
+  }
+
+  static async init(connection: Connection) {
+    const jupiter = await Jupiter.load({
+      cluster: `${CLUSTER}-beta` as 'mainnet-beta',
+      user: SOL_PRIVATE_KEY,
+      connection,
+    })
+
+    return new JupiterWrapper(connection, jupiter)
+  }
+}

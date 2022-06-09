@@ -1,7 +1,8 @@
 // eslint-disable-next-line no-unused-vars
+// eslint-disable-next-line max-classes-per-file
 type Watcher<V> = (newValue: V, oldValue: V) => void
 
-class Ref<V extends any> {
+export class Ref<V extends any> {
   private _value: V
   private _watchers: Watcher<V>[] = []
 
@@ -20,25 +21,11 @@ class Ref<V extends any> {
     this._value = val
   }
 
-  addWatchers(cb: Watcher<V>) {
-    const idx = this._watchers.length
-    this._watchers.push(cb)
-    return idx
-  }
-
-  removeWatcher(idx: number) {
-    this._watchers.splice(idx, 1)
+  watch(watcher: Watcher<V>) {
+    this._watchers.push(watcher)
   }
 }
 
 export const ref = <V extends any>(initialValue: V) => (
   new Ref<V>(initialValue)
 )
-
-export const watchRef = <V extends any>(target: Ref<V>, watcher: Watcher<V>) => {
-  const idx = target.addWatchers(watcher)
-
-  return () => {
-    target.removeWatcher(idx)
-  }
-}
