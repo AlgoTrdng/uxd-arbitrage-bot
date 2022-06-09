@@ -1,17 +1,19 @@
 import { ref, Ref } from './lib/reactive'
 
-type State = {
-  uxdChainBalance: Ref<number>
-  solChainBalance: Ref<number>
-  wrappedSolChainBalance: Ref<number>
+type AppStatus = 'rebalancing' | 'inArbitrage' | 'scanning'
 
-  appStatus: 'rebalancing' | 'inArbitrage' | 'scanning'
+type State = {
+  uxdChainBalance: number
+  solChainBalance: number
+  wrappedSolChainBalance: number
+
+  appStatus: Ref<AppStatus>
 }
 
 export const state: State = {
-  uxdChainBalance: ref(400),
-  solChainBalance: ref(0),
-  wrappedSolChainBalance: ref(0),
+  uxdChainBalance: 400,
+  solChainBalance: 0,
+  wrappedSolChainBalance: 0,
 
-  appStatus: 'scanning',
+  appStatus: ref<AppStatus>('scanning'),
 }

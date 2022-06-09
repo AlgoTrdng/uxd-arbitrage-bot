@@ -18,12 +18,12 @@ export class JupiterWrapper {
   }
 
   /**
-   * @param inputAmount Chain amount of input token
+   * @param inputChainAmount Chain amount of input token
    */
-  async fetchBestRouteInfo(inputMint: PublicKey, outputMint: PublicKey, inputAmount: number, slippage = 0.5) {
+  async fetchBestRouteInfo(inputMint: PublicKey, outputMint: PublicKey, inputChainAmount: number, slippage = 0.5) {
     const routes = await this.jupiter!.computeRoutes({
       slippage,
-      inputAmount,
+      inputAmount: inputChainAmount,
       inputMint,
       outputMint,
     })

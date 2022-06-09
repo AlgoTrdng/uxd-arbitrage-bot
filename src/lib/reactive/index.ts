@@ -1,8 +1,8 @@
 // eslint-disable-next-line no-unused-vars
 // eslint-disable-next-line max-classes-per-file
-type Watcher<V> = (newValue: V, oldValue: V) => void
+type Watcher<V extends unknown> = (newValue: V, oldValue: V) => void
 
-export class Ref<V extends any> {
+export class Ref<V extends unknown> {
   private _value: V
   private _watchers: Watcher<V>[] = []
 
@@ -26,6 +26,6 @@ export class Ref<V extends any> {
   }
 }
 
-export const ref = <V extends any>(initialValue: V) => (
+export const ref = <V extends unknown>(initialValue: V) => (
   new Ref<V>(initialValue)
 )
