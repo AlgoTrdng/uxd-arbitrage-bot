@@ -26,26 +26,42 @@ export const syncBalances = async (connection: Connection) => {
   ])
 }
 
-const WATCH_SOL_INTERVAL_PERIOD = 30_000
+const WATCH_SOL_INTERVAL_PERIOD = 20_000
 /**
  * @description Periodically fetch SOL balance to swap back if redemption stops because of low price diff but transaction goes through
  */
 export const watchRemainingSol = async (connection: Connection, jupiterWrapper: JupiterWrapper) => {
   await wait(WATCH_SOL_INTERVAL_PERIOD)
-  console.log('Watching for remaining SOL')
+  console.log('Watching remaining SOL')
 
   if (state.appStatus.value !== 'scanning') {
     await watchRemainingSol(connection, jupiterWrapper)
     return
   }
 
-  const solChainBalance = await fetchLamportsBalance(connection)
+  const remainingSolChainBalance = await fetchLamportsBalance(connection)
 
-  if (solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
-    const solUiBalance = getUiAmount(solChainBalance, SOL_DECIMALS)
-    // TODO: Properly check whether was successful
-    await swapSolToUxd(jupiterWrapper, solUiBalance)
-    await syncBalances(connection)
+  if (remainingSolChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
+    const remainingSolUiBalance = getUiAmount(remainingSolChainBalance, SOL_DECIMALS)
+    let swapResult = await swapSolToUxd(jupiterWrapper, remainingSolUiBalance)
+
+    while (!swapResult) {
+      await wait()
+      swapResult = await swapSolToUxd(jupiterWrapper, remainingSolUiBalance)
+    }
+
+    await syncSolBalance(connection)
+    while (state.solChainBalance === remainingSolChainBalance) {
+      await syncSolBalance(connection)
+      wait(500)
+    }
+
+    const preSwapUxdBalance = state.uxdChainBalance
+    await syncUxdBalance(connection)
+    while (preSwapUxdBalance === state.uxdChainBalance) {
+      await syncUxdBalance(connection)
+      wait(500)
+    }
   }
 
   await watchRemainingSol(connection, jupiterWrapper)

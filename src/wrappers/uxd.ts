@@ -23,10 +23,16 @@ export class UxdWrapper {
     private controller: UxdController,
     private mango: UxdMango,
     private depository: UxdMangoDepository,
+    private connection: Connection,
   ) {}
 
-  createRedeemTransaction(uxdUiBalance: number) {
-    const transaction = new Transaction()
+  async createRedeemTransaction(uxdUiBalance: number) {
+    const { blockhash } = await this.connection.getLatestBlockhash('confirmed')
+
+    const transaction = new Transaction({
+      recentBlockhash: blockhash,
+      feePayer: config.SOL_PUBLIC_KEY,
+    })
     const redeemIx = this.client.createRedeemFromMangoDepositoryInstruction(
       uxdUiBalance,
       5,
@@ -46,6 +52,12 @@ export class UxdWrapper {
     const depository = new MangoDepository(WSOL, 'SOL', SOL_DECIMALS, USDC, 'USDC', USDC_DECIMALS, program.UXD)
     const client = new UXDClient(program.UXD)
 
-    return new UxdWrapper(client, controller, mango, depository)
+    return new UxdWrapper(
+      client,
+      controller,
+      mango,
+      depository,
+      connection,
+    )
   }
 }

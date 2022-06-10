@@ -17,3 +17,7 @@ export const state: State = {
 
   appStatus: ref<AppStatus>('scanning'),
 }
+
+state.appStatus.watch((value) => {
+  console.log(`❗ APP Status changed: ${value}`)
+})

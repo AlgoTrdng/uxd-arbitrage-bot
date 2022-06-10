@@ -3,15 +3,15 @@ import { SOL_DECIMALS, UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
 import { JupiterWrapper } from '../wrappers/jupiter'
 import { MangoWrapper } from '../wrappers/mango'
+import { Wrappers } from '../wrappers'
 import { state } from '../state'
 import { redeem } from '../lib/actions/redeem'
 import { getUiAmount } from '../lib/utils/amount'
 import { UxdWrapper } from '../wrappers/uxd'
-import { swapSolToUxd, swapWSolToSol } from '../lib/actions/swap'
+import { swapSolToUxd } from '../lib/actions/swap'
 import { wait } from '../lib/utils/wait'
 import config from '../app.config'
 import { syncSolBalance, syncUxdBalance } from './balance'
-import { Wrappers } from '../wrappers'
 
 /**
  * @returns Price diff percentage
@@ -25,7 +25,6 @@ const calculatePriceDiff = async (uxdChainBalance: number, mangoWrapper: MangoWr
   return Number(priceDiff)
 }
 
-// TODO: Update balances after every successful transaction
 const executeRedemption = async (
   connection: Connection,
   uxdWrapper: UxdWrapper,
@@ -35,50 +34,61 @@ const executeRedemption = async (
   const preArbitrageUxdBalance = state.uxdChainBalance
   const uxdUiBalance = getUiAmount(preArbitrageUxdBalance, UXD_DECIMALS)
   console.log('⚠ Starting redemption with', uxdUiBalance)
-  let redemptionSignature = await redeem(connection, uxdUiBalance, uxdWrapper)
-  await syncUxdBalance(connection)
 
-  while (!redemptionSignature || preArbitrageUxdBalance <= state.uxdChainBalance) {
+  let postRedemptionBalances = await redeem(connection, uxdUiBalance, uxdWrapper)
+  while (!postRedemptionBalances) {
     console.log('⚠ Repeating redemption')
     const currentPriceDiff = await calculatePriceDiff(uxdUiBalance, mangoWrapper, jupiterWrapper)
 
     if (currentPriceDiff < config.minimumPriceDiff) {
-      state.appStatus.value = 'scanning'
       return false
     }
 
-    await wait()
-    redemptionSignature = await redeem(connection, state.uxdChainBalance, uxdWrapper)
-    await syncUxdBalance(connection)
+    postRedemptionBalances = await redeem(connection, state.uxdChainBalance, uxdWrapper)
   }
+
+  const { solChainBalance, uxdChainBalance } = postRedemptionBalances
+  state.solChainBalance = solChainBalance
+  state.uxdChainBalance = uxdChainBalance
 
   return true
 }
 
 const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrapper) => {
-  console.log('💱 Starting swap')
-  await syncSolBalance(connection)
-
+  const preSwapSolBalance = state.solChainBalance
   const solUiBalance = getUiAmount(state.solChainBalance, SOL_DECIMALS)
+
+  console.log('💱 Starting swap', solUiBalance)
   let swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
 
   while (!swapResult) {
     console.log('💱 Repeating swap')
-    if (state.wrappedSolChainBalance > 0) {
-      const preCloseSolBalance = state.solChainBalance
-      let closeAccountSignature = await swapWSolToSol(connection)
-      await syncSolBalance(connection)
+    // if (state.wrappedSolChainBalance > 0) {
+    //   const preCloseSolBalance = state.solChainBalance
+    //   let closeAccountSignature = await swapWSolToSol(connection)
+    //   await syncSolBalance(connection)
 
-      // SOL balance before close account transaction is >= than after, transaction failed
-      while (!closeAccountSignature || preCloseSolBalance >= state.solChainBalance) {
-        await wait()
-        closeAccountSignature = await swapWSolToSol(connection)
-        await syncSolBalance(connection)
-      }
-    }
+    //   // SOL balance before close account transaction is >= than after, transaction failed
+    //   while (!closeAccountSignature || preCloseSolBalance >= state.solChainBalance) {
+    //     await wait()
+    //     closeAccountSignature = await swapWSolToSol(connection)
+    //     await syncSolBalance(connection)
+    //   }
+    // }
 
     await wait()
     swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
+  }
+
+  await syncSolBalance(connection)
+  while (preSwapSolBalance === state.solChainBalance) {
+    await syncSolBalance(connection)
+  }
+
+  const preSwapUxdBalance = state.uxdChainBalance
+  await syncUxdBalance(connection)
+  while (preSwapUxdBalance === state.uxdChainBalance) {
+    await syncUxdBalance(connection)
   }
 }
 
@@ -90,7 +100,8 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
   while (true) {
     await wait(intervalMs)
 
-    if (state.appStatus.value !== 'scanning' || state.uxdChainBalance < 10_000_000) {
+    console.log('Scan', state.uxdChainBalance)
+    if (state.appStatus.value !== 'scanning') {
       continue
     }
 
@@ -98,7 +109,6 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     console.log('👋 Price diff: ', priceDiff)
 
     if (priceDiff > config.minimumPriceDiff) {
-      console.log('🟢 Starting arbitrage')
       state.appStatus.value = 'inArbitrage'
 
       // If price difference gets too low while executing redemption, stop arbitrage and continue scanning
@@ -116,9 +126,9 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
       }
 
       await executeSwap(connection, jupiterWrapper)
-      await syncUxdBalance(connection)
+
       state.appStatus.value = 'scanning'
-      console.log('👍 Arbitrage successful')
+      console.log('👍 Arbitrage successful', getUiAmount(state.uxdChainBalance, UXD_DECIMALS))
     }
   }
 }

@@ -11,6 +11,6 @@ import { initWrappers } from './wrappers'
   const wrappers = await initWrappers(connection)
 
   await syncBalances(connection)
-  watchRemainingSol(connection, wrappers.jupiterWrapper)
+  // watchRemainingSol(connection, wrappers.jupiterWrapper)
   await startArbitrageLoop(connection, 10_000, wrappers)
 })()
