@@ -11,6 +11,7 @@ import { swapSolToUxd, swapWSolToSol } from '../lib/actions/swap'
 import { wait } from '../lib/utils/wait'
 import config from '../app.config'
 import { syncSolBalance, syncUxdBalance } from './balance'
+import { Wrappers } from '../wrappers'
 
 /**
  * @returns Price diff percentage
@@ -81,18 +82,16 @@ const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrappe
   }
 }
 
-export const startArbitrageLoop = async (connection: Connection, intervalMs: number) => {
-  const mangoWrapper = await MangoWrapper.init()
-  const jupiterWrapper = await JupiterWrapper.init(connection)
-  const uxdWrapper = await UxdWrapper.init(connection)
+export const startArbitrageLoop = async (connection: Connection, intervalMs: number, wrappers: Wrappers) => {
+  const { jupiterWrapper, mangoWrapper, uxdWrapper } = wrappers
 
   mangoWrapper.watchSolPerpAsks()
 
-  await wait(intervalMs) // wait for all connections
-
   while (true) {
+    await wait(intervalMs)
+
     if (state.appStatus.value !== 'scanning' || state.uxdChainBalance < 10_000_000) {
-      return
+      continue
     }
 
     const priceDiff = await calculatePriceDiff(state.uxdChainBalance, mangoWrapper, jupiterWrapper)
@@ -103,11 +102,16 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
       state.appStatus.value = 'inArbitrage'
 
       // If price difference gets too low while executing redemption, stop arbitrage and continue scanning
-      const shouldContinueArbitrage = await executeRedemption(connection, uxdWrapper, mangoWrapper, jupiterWrapper)
+      const shouldContinueArbitrage = await executeRedemption(
+        connection,
+        uxdWrapper,
+        mangoWrapper,
+        jupiterWrapper,
+      )
 
       if (!shouldContinueArbitrage) {
         console.log('😡 Stopping arbitrage, low price diff')
-        await wait(intervalMs)
+        state.appStatus.value = 'scanning'
         continue
       }
 
@@ -116,7 +120,5 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
       state.appStatus.value = 'scanning'
       console.log('👍 Arbitrage successful')
     }
-
-    await wait(intervalMs)
   }
 }

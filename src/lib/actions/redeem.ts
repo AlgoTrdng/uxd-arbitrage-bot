@@ -5,10 +5,13 @@ import { UxdWrapper } from '../../wrappers/uxd'
 
 export const redeem = async (connection: Connection, uxdUiBalance: number, uxdWrapper: UxdWrapper) => {
   const tx = uxdWrapper.createRedeemTransaction(uxdUiBalance)
+  let signature: string | null = null
+
   try {
-    return sendAndConfirmTransaction(connection, tx, [config.SOL_PRIVATE_KEY])
+    signature = await sendAndConfirmTransaction(connection, tx, [config.SOL_PRIVATE_KEY])
   } catch (error) {
     console.log(error)
-    return null
   }
+
+  return signature
 }

@@ -32,12 +32,13 @@ export const fetchSplBalance = async (connection: Connection, mintAddress: Publi
   while (balance === null) {
     try {
       const response = await connection.getParsedTokenAccountsByOwner(config.SOL_PUBLIC_KEY, { mint: mintAddress })
-      // Account does not exist
+      // Account does not exist, balance = 0
       if (!response.value[0]) {
-        continue
+        balance = 0
+        break
       }
-      const { amount } = response.value[0].account.data.parsed.info.tokenAmount
 
+      const { amount } = response.value[0].account.data.parsed.info.tokenAmount
       balance = Number(amount)
     } catch (error) {
       console.log(error)

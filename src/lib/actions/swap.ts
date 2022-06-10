@@ -8,8 +8,10 @@ import { mint } from '../../constants'
 import { getChainAmount } from '../utils/amount'
 import config from '../../app.config'
 
+export const MINIMUM_SOL_CHAIN_AMOUNT = 100_000_000 // 0.1 SOL, minimum amount that has to be in wallet
+
 export const swapSolToUxd = async (jupiterWrapper: JupiterWrapper, solUiBalance: number) => {
-  const safeSolAmount = getChainAmount(solUiBalance, SOL_DECIMALS) - 100_000_000 // 0.1 SOL
+  const safeSolAmount = getChainAmount(solUiBalance, SOL_DECIMALS) - MINIMUM_SOL_CHAIN_AMOUNT
 
   const routeInfo = await jupiterWrapper.fetchBestRouteInfo(
     mint.SOL,
@@ -37,16 +39,19 @@ const getWSolATAPublicKey = async () => {
 
 export const swapWSolToSol = async (connection: Connection) => {
   const wSolATA = await getWSolATAPublicKey()
+  let signature: string | null = null
+
   try {
-    return closeAccount(
+    signature = await (closeAccount(
       connection,
       config.SOL_PRIVATE_KEY,
       wSolATA,
       config.SOL_PUBLIC_KEY,
       config.SOL_PRIVATE_KEY,
-    ) as Promise<TransactionSignature>
+    ) as Promise<TransactionSignature>)
   } catch (error) {
     console.log(error)
-    return null
   }
+
+  return signature
 }
