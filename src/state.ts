@@ -1,6 +1,16 @@
 import { ref, Ref } from './lib/reactive'
 
-type AppStatus = 'rebalancing' | 'inArbitrage' | 'scanning'
+/*
+scanning -> Not in arbitrage, scanning price differences
+scanning__arbitrageFail -> Price diff fallen too low while redeeming, ending arbitrage
+  - different status because of logging
+
+inArbitrage -> Started arbitrage, price diff was high enough
+
+rebalancing -> UXD amount is too high, swapping for UXD
+*/
+
+type AppStatus = 'rebalancing' | 'inArbitrage' | 'scanning' | 'scanning__arbitrageFail'
 
 type State = {
   uxdChainBalance: number
@@ -17,7 +27,3 @@ export const state: State = {
 
   appStatus: ref<AppStatus>('scanning'),
 }
-
-state.appStatus.watch((value) => {
-  console.log(`❗ APP Status changed: ${value}`)
-})

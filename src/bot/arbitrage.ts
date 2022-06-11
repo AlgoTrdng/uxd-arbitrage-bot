@@ -104,7 +104,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     await wait(intervalMs)
 
     console.log('Scan', state.uxdChainBalance)
-    if (state.appStatus.value !== 'scanning') {
+    if (!state.appStatus.value.startsWith('scanning')) {
       continue
     }
 
@@ -124,7 +124,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
       if (!shouldContinueArbitrage) {
         console.log('😡 Stopping arbitrage, low price diff')
-        state.appStatus.value = 'scanning'
+        state.appStatus.value = 'scanning__arbitrageFail'
         continue
       }
 

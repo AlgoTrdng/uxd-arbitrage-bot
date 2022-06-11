@@ -3,7 +3,7 @@ import {
 } from 'discord.js'
 
 import config from '../app.config'
-import { logger } from './utils/logger'
+import { logger } from '../lib/utils/logger'
 
 export class Discord {
   client: Client
