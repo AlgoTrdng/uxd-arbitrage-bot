@@ -26,7 +26,7 @@ export class UxdWrapper {
     private connection: Connection,
   ) {}
 
-  async createRedeemTransaction(uxdUiBalance: number) {
+  async createSignedRedeemRawTransaction(uxdUiBalance: number) {
     const { blockhash } = await this.connection.getLatestBlockhash('confirmed')
 
     const transaction = new Transaction({
@@ -43,7 +43,9 @@ export class UxdWrapper {
       {},
     )
     transaction.add(redeemIx)
-    return transaction
+    transaction.sign(config.SOL_PRIVATE_KEY)
+    const signedTransaction = transaction.serialize()
+    return signedTransaction
   }
 
   static async init(connection: Connection) {

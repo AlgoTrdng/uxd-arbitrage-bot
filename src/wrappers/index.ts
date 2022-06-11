@@ -4,6 +4,12 @@ import { JupiterWrapper } from './jupiter'
 import { MangoWrapper } from './mango'
 import { UxdWrapper } from './uxd'
 
+export {
+  JupiterWrapper,
+  MangoWrapper,
+  UxdWrapper,
+}
+
 export type Wrappers = {
   jupiterWrapper: JupiterWrapper,
   uxdWrapper: UxdWrapper,

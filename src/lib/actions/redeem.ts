@@ -1,13 +1,6 @@
-import {
-  ConfirmedTransactionMeta,
-  Connection,
-  SendOptions,
-  Transaction,
-} from '@solana/web3.js'
-import config from '../../app.config'
+import { ConfirmedTransactionMeta, Connection, SendOptions } from '@solana/web3.js'
 import { mint } from '../../constants'
 
-import { UxdWrapper } from '../../wrappers/uxd'
 import { wait } from '../utils/wait'
 
 const getTs = () => new Date().getTime()
@@ -33,11 +26,10 @@ const sendOptions: SendOptions = {
 }
 
 const MAX_WAIT_TIME = 60_000 // MAX_RETRIES * RETRY_TIME + some room for verifying transaction
-const MAX_RETRIES = 20
-const RETRY_TIME = 5_000
+const MAX_RETRIES = 10
+const RETRY_TIME = 3_000
 
-const sendAndAwaitTransaction = async (connection: Connection, transaction: Transaction) => {
-  const serializedTransaction = transaction.serialize()
+export const sendAndAwaitRawRedeemTransaction = async (connection: Connection, serializedTransaction: Buffer) => {
   const txid = await connection.sendRawTransaction(serializedTransaction, sendOptions)
   const sendTransactionTs = getTs()
 
@@ -69,11 +61,4 @@ const sendAndAwaitTransaction = async (connection: Connection, transaction: Tran
   }
 
   return null
-}
-
-export const redeem = async (connection: Connection, uxdUiBalance: number, uxdWrapper: UxdWrapper) => {
-  const tx = await uxdWrapper.createRedeemTransaction(uxdUiBalance)
-  tx.sign(config.SOL_PRIVATE_KEY)
-  const success = await sendAndAwaitTransaction(connection, tx)
-  return success
 }

@@ -3,12 +3,10 @@ import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js'
 // @ts-ignore
 import { getAssociatedTokenAddress, NATIVE_MINT, closeAccount } from '@solana/spl-token'
 
-import { JupiterWrapper } from '../../wrappers/jupiter'
-import { mint } from '../../constants'
+import { JupiterWrapper } from '../../wrappers'
+import { MINIMUM_SOL_CHAIN_AMOUNT, mint } from '../../constants'
 import { getChainAmount } from '../utils/amount'
 import config from '../../app.config'
-
-export const MINIMUM_SOL_CHAIN_AMOUNT = 100_000_000 // 0.1 SOL, minimum amount that has to be in wallet
 
 export const swapSolToUxd = async (jupiterWrapper: JupiterWrapper, solUiBalance: number) => {
   const safeSolAmount = getChainAmount(solUiBalance, SOL_DECIMALS) - MINIMUM_SOL_CHAIN_AMOUNT

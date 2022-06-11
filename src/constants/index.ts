@@ -9,3 +9,6 @@ export const mint = {
 export const program = {
   UXD: new PublicKey('UXD8m9cvwk4RcSxnX2HZ9VudQCEeDH6fRnB4CAP57Dr'),
 } as const
+
+export const MINIMUM_SOL_CHAIN_AMOUNT = 100_000_000 // 0.1 SOL, minimum amount that has to be in wallet
+export const MINIMUM_UXD_CHAIN_AMOUNT = 10_000_000 // 10 UXD

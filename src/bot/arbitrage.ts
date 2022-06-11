@@ -1,17 +1,20 @@
 import { Connection } from '@solana/web3.js'
 import { SOL_DECIMALS, UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
-import { JupiterWrapper } from '../wrappers/jupiter'
-import { MangoWrapper } from '../wrappers/mango'
-import { Wrappers } from '../wrappers'
+import {
+  Wrappers,
+  JupiterWrapper,
+  MangoWrapper,
+  UxdWrapper,
+} from '../wrappers'
 import { state } from '../state'
-import { redeem } from '../lib/actions/redeem'
+import { sendAndAwaitRawRedeemTransaction } from '../lib/actions/redeem'
 import { getUiAmount } from '../lib/utils/amount'
-import { UxdWrapper } from '../wrappers/uxd'
 import { swapSolToUxd } from '../lib/actions/swap'
 import { wait } from '../lib/utils/wait'
 import config from '../app.config'
 import { syncSolBalance, syncUxdBalance } from './balance'
+import { MINIMUM_SOL_CHAIN_AMOUNT, MINIMUM_UXD_CHAIN_AMOUNT } from '../constants'
 
 /**
  * @returns Price diff percentage
@@ -35,7 +38,8 @@ const executeRedemption = async (
   const uxdUiBalance = getUiAmount(preArbitrageUxdBalance, UXD_DECIMALS)
   console.log('⚠ Starting redemption with', uxdUiBalance)
 
-  let postRedemptionBalances = await redeem(connection, uxdUiBalance, uxdWrapper)
+  const serializedTransaction = await uxdWrapper.createSignedRedeemRawTransaction(uxdUiBalance)
+  let postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, serializedTransaction)
   while (!postRedemptionBalances) {
     console.log('⚠ Repeating redemption')
     const currentPriceDiff = await calculatePriceDiff(uxdUiBalance, mangoWrapper, jupiterWrapper)
@@ -44,7 +48,8 @@ const executeRedemption = async (
       return false
     }
 
-    postRedemptionBalances = await redeem(connection, state.uxdChainBalance, uxdWrapper)
+    await wait()
+    postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, serializedTransaction)
   }
 
   const { solChainBalance, uxdChainBalance } = postRedemptionBalances
@@ -55,7 +60,6 @@ const executeRedemption = async (
 }
 
 const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrapper) => {
-  const preSwapSolBalance = state.solChainBalance
   const solUiBalance = getUiAmount(state.solChainBalance, SOL_DECIMALS)
 
   console.log('💱 Starting swap', solUiBalance)
@@ -81,13 +85,12 @@ const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrappe
   }
 
   await syncSolBalance(connection)
-  while (preSwapSolBalance === state.solChainBalance) {
+  while (state.solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
     await syncSolBalance(connection)
   }
 
-  const preSwapUxdBalance = state.uxdChainBalance
   await syncUxdBalance(connection)
-  while (preSwapUxdBalance === state.uxdChainBalance) {
+  while (state.uxdChainBalance < MINIMUM_UXD_CHAIN_AMOUNT) {
     await syncUxdBalance(connection)
   }
 }

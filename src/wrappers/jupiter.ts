@@ -2,11 +2,16 @@ import { Jupiter, RouteInfo } from '@jup-ag/core'
 import { Connection, PublicKey } from '@solana/web3.js'
 import { SOL_DECIMALS, UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
-import { SwapResult } from './types'
-import config from '../../app.config'
-import { mint } from '../../constants'
+import config from '../app.config'
+import { mint } from '../constants'
 
 const { SOL_PRIVATE_KEY, cluster } = config
+
+type SwapResult = {
+  txid: string
+  inputAmount: number
+  outputAmount: number
+}
 
 export class JupiterWrapper {
   connection: Connection
