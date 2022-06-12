@@ -23,12 +23,7 @@ export const swapSolToUxd = async (jupiterWrapper: JupiterWrapper, solUiBalance:
     safeSolAmount,
   )
   const swapResult = await jupiterWrapper.swap(routeInfo)
-
-  if (swapResult?.txid) {
-    return swapResult as SwapResultSuccess
-  }
-
-  return null
+  return swapResult as SwapResultSuccess | null
 }
 
 let wSolATAPublicKey: PublicKey | null = null

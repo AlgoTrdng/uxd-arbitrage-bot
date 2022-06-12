@@ -1,11 +1,22 @@
 import {
-  Client, Intents, MessageEmbed, TextChannel,
+  Client,
+  ColorResolvable,
+  EmbedField,
+  Intents,
+  MessageEmbed,
+  TextChannel,
 } from 'discord.js'
 
 import config from '../app.config'
 import { logger } from '../lib/utils/logger'
 
-export class Discord {
+export type EmbedConfig = {
+  description?: string
+  color?: ColorResolvable
+  fields?: EmbedField[]
+}
+
+export class DiscordWrapper {
   client: Client
   channel: TextChannel
 
@@ -23,40 +34,22 @@ export class Discord {
     await client.login(config.DISCORD_TOKEN)
 
     const channel = await client.channels.fetch(config.DISCORD_CHANNEL_ID) as TextChannel
-    await channel.send('Arbitrage bot started, SETUP ready, scanning for arbitrage.')
+    await channel.send('🤖 Arbitrage bot started, scanning for arbitrage and listening for updates.')
 
-    return new Discord(client, channel)
+    return new DiscordWrapper(client, channel)
   }
 
-  async sendArbMsg(amounts: { oldUxdUiAmount: number, newUxdUiAmount: number }, success: boolean) {
-    const { oldUxdUiAmount, newUxdUiAmount } = amounts
-    const profit = (newUxdUiAmount / oldUxdUiAmount - 1) * 100
-    const description = success
-      ? 'Successfully executed **REDEEM** arbitrage'
-      : 'Unsuccessfully executed **REDEEM** arbitrage, redemption failed'
+  async sendEmbed(embedConfig: EmbedConfig) {
+    const { description, color, fields } = embedConfig
     const embed = new MessageEmbed({
       description,
-      fields: [
-        {
-          name: 'Old amount',
-          value: `UXD ${oldUxdUiAmount.toFixed(2)}`,
-          inline: true,
-        },
-        {
-          name: 'New amount',
-          value: `UXD ${newUxdUiAmount.toFixed(2)}`,
-          inline: true,
-        },
-        {
-          name: 'Profit',
-          value: `${profit.toFixed(2)}%`,
-          inline: true,
-        },
-      ],
+      fields,
     })
-    const clr = profit > 0 ? '#78EA4A' : '#EB5757'
-    embed.setColor(clr)
 
-    await this.channel?.send({ embeds: [embed] })
+    if (color) {
+      embed.setColor(color)
+    }
+
+    await this.channel.send({ embeds: [embed] })
   }
 }

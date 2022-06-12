@@ -12,7 +12,7 @@ import { recordArbitrageTrades } from './bot/recorder'
 
   await syncBalances(connection)
 
-  recordArbitrageTrades()
+  await recordArbitrageTrades()
   watchRemainingSol(connection, wrappers.jupiterWrapper)
 
   await startArbitrageLoop(connection, 10_000, wrappers)

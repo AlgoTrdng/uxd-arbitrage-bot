@@ -1,39 +1,134 @@
 import { UXD_DECIMALS } from '@uxd-protocol/uxd-client'
+import { EmbedField } from 'discord.js'
 
-import { getUiAmount } from '../lib/utils/amount'
+import { logArbitrageStatus } from '../lib/utils/logger'
 import { state } from '../state'
+import { DiscordWrapper, EmbedConfig } from '../wrappers/discord'
 
-export const recordArbitrageTrades = () => {
-  let preArbitrageUiBalance: number | null = null
+const getPercentageFromBps = (bps: number) => Number((bps * 100).toFixed(2))
+const getMessageAmount = (amount: number, decimals: number) => (
+  Number(
+    (amount / (10 ** decimals))
+      .toFixed(2),
+  )
+)
 
-  state.appStatus.watch((newStatus, prevStatus) => {
+type StatusMessage = {
+  oldAmount: number
+  newAmount: number
+  profit: number
+  type: 'redeem'
+  wasSuccessful: boolean
+  executedAt: Date
+}
+
+const createStatusMessage = (
+  preArbitrageUiBalance: number,
+  postArbitrageUiBalance: number,
+  success: boolean,
+): StatusMessage => {
+  const profitBps = postArbitrageUiBalance / preArbitrageUiBalance - 1
+  return {
+    oldAmount: preArbitrageUiBalance,
+    newAmount: postArbitrageUiBalance,
+    wasSuccessful: success,
+    profit: Number(profitBps.toFixed(4)),
+    type: 'redeem',
+    executedAt: new Date(),
+  }
+}
+
+type DiscordMessageData = {
+  oldAmount: number
+  newAmount: number
+  wasSuccessful: boolean
+  profitPercentage: number
+}
+
+const createDiscordMessageData = (messageData: DiscordMessageData): EmbedConfig => {
+  const {
+    oldAmount, newAmount, wasSuccessful, profitPercentage,
+  } = messageData
+
+  const fields: EmbedField[] = [
+    {
+      name: 'Old amount',
+      value: `UXD ${oldAmount}`,
+      inline: true,
+    },
+    {
+      name: 'New amount',
+      value: `UXD ${newAmount}`,
+      inline: true,
+    },
+    {
+      name: 'Profit',
+      value: `${profitPercentage}%`,
+      inline: true,
+    },
+  ]
+  return {
+    description: `Executed ${wasSuccessful ? 'successful' : 'unsuccessful'} **REDEEM** arbitrage`,
+    color: profitPercentage > 0 ? '#78EA4A' : '#EB5757',
+    fields,
+  }
+}
+
+export const recordArbitrageTrades = async () => {
+  const discordWrapper = await DiscordWrapper.init()
+
+  let preArbitrageMessageBalance: number | null = null
+
+  state.appStatus.watch(async (newStatus, prevStatus) => {
     // Start arbitrage
     if (newStatus === 'inArbitrage') {
-      preArbitrageUiBalance = getUiAmount(state.uxdChainBalance, UXD_DECIMALS)
+      preArbitrageMessageBalance = getMessageAmount(state.uxdChainBalance, UXD_DECIMALS)
       return
     }
 
     // Remaining SOL from previous failed redemption was swapped for UXD
+    // preArbitrageMessageBalance should always be defined in this case
     if (newStatus === 'scanning' && prevStatus === 'swappingRemainingSol') {
-      const postArbitrageUiBalance = getUiAmount(state.uxdChainBalance, UXD_DECIMALS)
-      const profitBps = postArbitrageUiBalance / preArbitrageUiBalance! - 1
-      const profitPercentage = Number((profitBps * 100).toFixed(2))
+      const postArbitrageMessageBalance = getMessageAmount(state.uxdChainBalance, UXD_DECIMALS)
 
-      console.log(`Unsuccessful arbitrage, profit: ${profitPercentage}%`)
+      const statusMessage = createStatusMessage(preArbitrageMessageBalance!, postArbitrageMessageBalance, false)
+      const profitPercentage = getPercentageFromBps(statusMessage.profit)
+      const discordMessage = createDiscordMessageData({
+        ...statusMessage,
+        profitPercentage,
+      })
 
-      preArbitrageUiBalance = null
+      await discordWrapper.sendEmbed(discordMessage)
+      logArbitrageStatus(
+        statusMessage.oldAmount,
+        statusMessage.newAmount,
+        profitPercentage,
+        statusMessage.wasSuccessful,
+      )
+      preArbitrageMessageBalance = null
       return
     }
 
     // Arbitrage was successful
+    // preArbitrageMessageBalance should always be defined in this case
     if (newStatus === 'scanning' && prevStatus === 'inArbitrage') {
-      const postArbitrageUiBalance = getUiAmount(state.uxdChainBalance, UXD_DECIMALS)
-      const profitBps = postArbitrageUiBalance / preArbitrageUiBalance! - 1
-      const profitPercentage = Number((profitBps * 100).toFixed(2))
+      const postArbitrageMessageBalance = getMessageAmount(state.uxdChainBalance, UXD_DECIMALS)
 
-      console.log(`Successful arbitrage, profit: ${profitPercentage}%`)
+      const statusMessage = createStatusMessage(preArbitrageMessageBalance!, postArbitrageMessageBalance, true)
+      const profitPercentage = getPercentageFromBps(statusMessage.profit)
+      const discordMessage = createDiscordMessageData({
+        ...statusMessage,
+        profitPercentage,
+      })
 
-      preArbitrageUiBalance = null
+      await discordWrapper.sendEmbed(discordMessage)
+      logArbitrageStatus(
+        statusMessage.oldAmount,
+        statusMessage.newAmount,
+        profitPercentage,
+        statusMessage.wasSuccessful,
+      )
+      preArbitrageMessageBalance = null
     }
   })
 }

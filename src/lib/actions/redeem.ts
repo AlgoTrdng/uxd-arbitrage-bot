@@ -49,6 +49,7 @@ export const sendAndAwaitRawRedeemTransaction = async (connection: Connection, s
 
     if (response) {
       if (!response.meta || response.meta.err) {
+        console.log(response)
         return null
       }
 

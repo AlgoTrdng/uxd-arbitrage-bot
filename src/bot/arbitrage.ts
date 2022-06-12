@@ -65,6 +65,7 @@ const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrappe
   console.log('💱 Starting swap', solUiBalance)
   let swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
 
+  console.log(swapResult)
   while (!swapResult) {
     console.log('💱 Repeating swap')
     // if (state.wrappedSolChainBalance > 0) {
@@ -82,16 +83,20 @@ const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrappe
 
     await wait()
     swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
+    console.log(swapResult)
   }
+
+  const { outputAmount } = swapResult
 
   await syncSolBalance(connection)
   while (state.solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
+    console.log('Fetching sol balance')
     await syncSolBalance(connection)
     await wait()
   }
 
   await syncUxdBalance(connection)
-  while (state.uxdChainBalance < MINIMUM_UXD_CHAIN_AMOUNT) {
+  while (state.uxdChainBalance < outputAmount) {
     await syncUxdBalance(connection)
     await wait()
   }
@@ -105,9 +110,8 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
   while (true) {
     await wait(intervalMs)
 
-    console.log('Scan', state.uxdChainBalance)
-    await syncUxdBalance(connection)
-    if (!state.appStatus.value.startsWith('scanning') || state.uxdChainBalance < MINIMUM_UXD_CHAIN_AMOUNT) {
+    if (state.appStatus.value !== 'scanning') {
+      console.log(state.appStatus.value, state.uxdChainBalance)
       continue
     }
 
@@ -127,14 +131,13 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
       if (!shouldContinueArbitrage) {
         console.log('😡 Stopping arbitrage, low price diff')
-        state.appStatus.value = 'scanning__arbitrageFail'
+        state.appStatus.value = 'monitoringRemainingSol'
         continue
       }
 
       await executeSwap(connection, jupiterWrapper)
 
       state.appStatus.value = 'scanning'
-      console.log('👍 Arbitrage successful', getUiAmount(state.uxdChainBalance, UXD_DECIMALS))
     }
   }
 }

@@ -11,3 +11,16 @@ export const logger = (type: keyof typeof messageSigns, message: string) => {
     console.log(`${messageSigns[type]} - ${type}: ${message}`)
   }
 }
+
+export const logArbitrageStatus = (oldAmount: number, newAmount: number, profitPercentage: number, success: boolean) => {
+  const message = `Executed arbitrage; status: ${
+    success
+  }, profit: ${
+    profitPercentage
+  }, oldAmount: ${
+    oldAmount
+  }, newAmount: ${
+    newAmount
+  }`
+  console.log(message)
+}

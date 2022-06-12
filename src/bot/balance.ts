@@ -32,15 +32,17 @@ export const watchRemainingSol = (connection: Connection, jupiterWrapper: Jupite
   let shouldWatch = false
   let watchStartTime: number | null = null
 
-  state.appStatus.watch(async (newStatus, prevStatus) => {
-    if (newStatus === 'scanning__arbitrageFail') {
+  state.appStatus.watch(async (newStatus) => {
+    if (newStatus === 'monitoringRemainingSol') {
       shouldWatch = true
       watchStartTime = getTs()
 
       while (shouldWatch && getTs() - watchStartTime < MAX_WATCH_TIME) {
         const solChainBalance = await fetchLamportsBalance(connection)
+        console.log('Watching remaining SOL', solChainBalance)
 
         if (solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
+          // TODO: Save timestamps when high amount is found
           state.appStatus.value = 'swappingRemainingSol'
           const solUiBalance = getUiAmount(solChainBalance, SOL_DECIMALS)
           let swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
@@ -59,17 +61,16 @@ export const watchRemainingSol = (connection: Connection, jupiterWrapper: Jupite
             await syncUxdBalance(connection)
           }
 
-          state.appStatus.value = 'scanning'
           break
         }
 
-        await wait(500)
+        await wait(2000)
       }
-      return
-    }
 
-    if (prevStatus === 'scanning__arbitrageFail') {
+      console.log('Stopped watching remaining SOL')
+
       shouldWatch = false
+      state.appStatus.value = 'scanning'
     }
   })
 }
