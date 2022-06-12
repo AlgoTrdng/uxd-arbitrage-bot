@@ -8,6 +8,12 @@ import { MINIMUM_SOL_CHAIN_AMOUNT, mint } from '../../constants'
 import { getChainAmount } from '../utils/amount'
 import config from '../../app.config'
 
+type SwapResultSuccess = {
+  txid: string
+  inputAmount: number
+  outputAmount: number
+}
+
 export const swapSolToUxd = async (jupiterWrapper: JupiterWrapper, solUiBalance: number) => {
   const safeSolAmount = getChainAmount(solUiBalance, SOL_DECIMALS) - MINIMUM_SOL_CHAIN_AMOUNT
 
@@ -17,7 +23,12 @@ export const swapSolToUxd = async (jupiterWrapper: JupiterWrapper, solUiBalance:
     safeSolAmount,
   )
   const swapResult = await jupiterWrapper.swap(routeInfo)
-  return swapResult
+
+  if (swapResult?.txid) {
+    return swapResult as SwapResultSuccess
+  }
+
+  return null
 }
 
 let wSolATAPublicKey: PublicKey | null = null

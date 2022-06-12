@@ -87,11 +87,13 @@ const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrappe
   await syncSolBalance(connection)
   while (state.solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
     await syncSolBalance(connection)
+    await wait()
   }
 
   await syncUxdBalance(connection)
   while (state.uxdChainBalance < MINIMUM_UXD_CHAIN_AMOUNT) {
     await syncUxdBalance(connection)
+    await wait()
   }
 }
 
@@ -104,7 +106,8 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     await wait(intervalMs)
 
     console.log('Scan', state.uxdChainBalance)
-    if (!state.appStatus.value.startsWith('scanning')) {
+    await syncUxdBalance(connection)
+    if (!state.appStatus.value.startsWith('scanning') || state.uxdChainBalance < MINIMUM_UXD_CHAIN_AMOUNT) {
       continue
     }
 

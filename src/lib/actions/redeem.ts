@@ -1,9 +1,8 @@
 import { ConfirmedTransactionMeta, Connection, SendOptions } from '@solana/web3.js'
+
 import { mint } from '../../constants'
-
 import { wait } from '../utils/wait'
-
-const getTs = () => new Date().getTime()
+import { getTs } from '../utils/getTimestamp'
 
 const getTransactionData = (transactionMeta: ConfirmedTransactionMeta) => {
   const { postBalances, postTokenBalances } = transactionMeta
