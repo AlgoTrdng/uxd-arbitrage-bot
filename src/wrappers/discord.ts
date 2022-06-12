@@ -53,3 +53,39 @@ export class DiscordWrapper {
     await this.channel.send({ embeds: [embed] })
   }
 }
+
+type DiscordMessageData = {
+  oldAmount: number
+  newAmount: number
+  wasSuccessful: boolean
+  profitPercentage: number
+}
+
+export const createDiscordMessageData = (messageData: DiscordMessageData): EmbedConfig => {
+  const {
+    oldAmount, newAmount, wasSuccessful, profitPercentage,
+  } = messageData
+
+  const fields: EmbedField[] = [
+    {
+      name: 'Old amount',
+      value: `UXD ${oldAmount}`,
+      inline: true,
+    },
+    {
+      name: 'New amount',
+      value: `UXD ${newAmount}`,
+      inline: true,
+    },
+    {
+      name: 'Profit',
+      value: `${profitPercentage}%`,
+      inline: true,
+    },
+  ]
+  return {
+    description: `Executed ${wasSuccessful ? 'successful' : 'unsuccessful'} **REDEEM** arbitrage`,
+    color: profitPercentage > 0 ? '#78EA4A' : '#EB5757',
+    fields,
+  }
+}

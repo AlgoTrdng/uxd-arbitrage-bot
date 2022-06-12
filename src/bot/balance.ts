@@ -28,7 +28,7 @@ export const syncBalances = async (connection: Connection) => {
 }
 
 export const watchRemainingSol = (connection: Connection, jupiterWrapper: JupiterWrapper) => {
-  const MAX_WATCH_TIME = 120_000
+  const MAX_WATCH_TIME = 60_000
   let shouldWatch = false
   let watchStartTime: number | null = null
 
