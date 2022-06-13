@@ -1,4 +1,10 @@
-import { Connection, Transaction } from '@solana/web3.js'
+import {
+  Connection,
+  Transaction,
+  TransactionInstruction,
+  Keypair,
+  TransactionBlockhashCtor,
+} from '@solana/web3.js'
 import {
   Controller,
   Controller as UxdController,
@@ -17,6 +23,50 @@ import {
 import config from '../app.config'
 import { program } from '../constants'
 
+const createTransaction = async (
+  connection: Connection,
+  signer: Keypair,
+  instruction: TransactionInstruction,
+) => {
+  let validUntil: null | number = null
+
+  const update = async () => {
+    const { blockhash: latestBlockHash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
+    validUntil = lastValidBlockHeight
+
+    const transactionConfig: TransactionBlockhashCtor = {
+      blockhash: latestBlockHash,
+      lastValidBlockHeight,
+    }
+    const transaction = new Transaction(transactionConfig)
+
+    transaction.add(instruction)
+    transaction.sign(signer)
+    const serializedTransaction = transaction.serialize()
+    return serializedTransaction
+  }
+
+  /**
+   * @returns True if is valid
+   */
+  const validate = async () => {
+    if (!validUntil) {
+      return false
+    }
+
+    const blockHeight = await connection.getBlockHeight('confirmed')
+    return validUntil > blockHeight
+  }
+
+  const transaction = await update()
+
+  return {
+    transaction,
+    update,
+    validate,
+  }
+}
+
 export class UxdWrapper {
   constructor(
     private client: UXDClient,
@@ -27,14 +77,8 @@ export class UxdWrapper {
   ) {}
 
   async createSignedRedeemRawTransaction(uxdUiBalance: number) {
-    const { blockhash } = await this.connection.getLatestBlockhash('confirmed')
-
-    const transaction = new Transaction({
-      recentBlockhash: blockhash,
-      feePayer: config.SOL_PUBLIC_KEY,
-    })
-    const redeemIx = this.client.createRedeemFromMangoDepositoryInstruction(
-      uxdUiBalance,
+    const redeemInstruction = this.client.createRedeemFromMangoDepositoryInstruction(
+      uxdUiBalance - 1,
       5,
       this.controller,
       this.depository,
@@ -42,10 +86,8 @@ export class UxdWrapper {
       config.SOL_PUBLIC_KEY,
       {},
     )
-    transaction.add(redeemIx)
-    transaction.sign(config.SOL_PRIVATE_KEY)
-    const signedTransaction = transaction.serialize()
-    return signedTransaction
+    const transactionData = await createTransaction(this.connection, config.SOL_PRIVATE_KEY, redeemInstruction)
+    return transactionData
   }
 
   static async init(connection: Connection) {

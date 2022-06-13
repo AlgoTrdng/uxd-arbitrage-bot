@@ -15,7 +15,6 @@ export const fetchLamportsBalance = async (connection: Connection) => {
     try {
       lamports = await connection.getBalance(config.SOL_PUBLIC_KEY)
     } catch (error) {
-      console.log(error)
       await wait()
     }
   }
@@ -41,17 +40,9 @@ export const fetchSplBalance = async (connection: Connection, mintAddress: Publi
       const { amount } = response.value[0].account.data.parsed.info.tokenAmount
       balance = Number(amount)
     } catch (error) {
-      console.log(error)
       await wait()
     }
   }
 
   return balance
-}
-
-export const watchSolBalance = (connection: Connection, cb: (chainAmount: number) => void) => {
-  setInterval(async () => {
-    const solBalance = await fetchLamportsBalance(connection)
-    cb.call(null, solBalance)
-  }, 30_000)
 }

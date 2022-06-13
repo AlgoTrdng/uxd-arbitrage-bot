@@ -14,7 +14,7 @@ import { swapSolToUxd } from '../lib/actions/swap'
 import { wait } from '../lib/utils/wait'
 import config from '../app.config'
 import { syncSolBalance, syncUxdBalance } from './balance'
-import { MINIMUM_SOL_CHAIN_AMOUNT, MINIMUM_UXD_CHAIN_AMOUNT } from '../constants'
+import { MINIMUM_SOL_CHAIN_AMOUNT } from '../constants'
 
 /**
  * @returns Price diff percentage
@@ -38,10 +38,18 @@ const executeRedemption = async (
   const uxdUiBalance = getUiAmount(preArbitrageUxdBalance, UXD_DECIMALS)
   console.log('⚠ Starting redemption with', uxdUiBalance)
 
-  const serializedTransaction = await uxdWrapper.createSignedRedeemRawTransaction(uxdUiBalance)
-  let postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, serializedTransaction)
+  const redeemTxData = await uxdWrapper.createSignedRedeemRawTransaction(uxdUiBalance)
+  let redeemTx = redeemTxData.transaction
+
+  let postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, redeemTx)
   while (!postRedemptionBalances) {
     console.log('⚠ Repeating redemption')
+    const isRedeemTxValid = await redeemTxData.validate()
+
+    if (!isRedeemTxValid) {
+      redeemTx = await redeemTxData.update()
+    }
+
     const currentPriceDiff = await calculatePriceDiff(uxdUiBalance, mangoWrapper, jupiterWrapper)
 
     if (currentPriceDiff < config.minimumPriceDiff) {
@@ -49,7 +57,7 @@ const executeRedemption = async (
     }
 
     await wait()
-    postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, serializedTransaction)
+    postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, redeemTx)
   }
 
   const { solChainBalance, uxdChainBalance } = postRedemptionBalances
@@ -90,7 +98,6 @@ const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrappe
 
   await syncSolBalance(connection)
   while (state.solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
-    console.log('Fetching sol balance')
     await syncSolBalance(connection)
     await wait()
   }
@@ -109,9 +116,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
   while (true) {
     await wait(intervalMs)
-
     if (state.appStatus.value !== 'scanning') {
-      console.log(state.appStatus.value, state.uxdChainBalance)
       continue
     }
 
