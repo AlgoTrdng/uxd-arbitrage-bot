@@ -5,6 +5,7 @@ import config from '../app.config'
 
 export const Collections = {
   trades: config.TRADES_COLLECTION,
+  fails: config.REDEMPTION_FAILS_COLLECTION,
 }
 
 const app = initializeApp({

@@ -9,6 +9,7 @@ import { getTs } from '../lib/utils/getTimestamp'
 import { wait } from '../lib/utils/wait'
 import { state } from '../state'
 import { JupiterWrapper } from '../wrappers'
+import { Collections, saveDocument } from '../wrappers/firebase'
 
 export const syncUxdBalance = async (connection: Connection) => {
   const uxdBalance = await fetchSplBalance(connection, mint.UXD)
@@ -29,20 +30,21 @@ export const syncBalances = async (connection: Connection) => {
 
 export const watchRemainingSol = (connection: Connection, jupiterWrapper: JupiterWrapper) => {
   const MAX_WATCH_TIME = 60_000
-  let shouldWatch = false
-  let watchStartTime: number | null = null
 
   state.appStatus.watch(async (newStatus) => {
     if (newStatus === 'monitoringRemainingSol') {
-      shouldWatch = true
-      watchStartTime = getTs()
+      let shouldWatch = true
+      const watchStartTime = getTs()
+
+      let elapsedMs: number | null = null
 
       while (shouldWatch && getTs() - watchStartTime < MAX_WATCH_TIME) {
         const solChainBalance = await fetchLamportsBalance(connection)
-        console.log('Watching remaining SOL', solChainBalance)
 
         if (solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
-          // TODO: Save timestamps when high amount is found
+          // Logging
+          elapsedMs = getTs() - watchStartTime
+
           state.appStatus.value = 'swappingRemainingSol'
           const solUiBalance = getUiAmount(solChainBalance, SOL_DECIMALS)
           let swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
@@ -60,14 +62,16 @@ export const watchRemainingSol = (connection: Connection, jupiterWrapper: Jupite
             await wait()
             await syncUxdBalance(connection)
           }
-
           break
         }
 
         await wait(2000)
       }
 
-      console.log('Stopped watching remaining SOL')
+      await saveDocument(Collections.fails, watchStartTime.toString(), {
+        elapsedMs,
+        didSwap: Boolean(elapsedMs),
+      })
 
       shouldWatch = false
       state.appStatus.value = 'scanning'

@@ -21,6 +21,7 @@ const {
   FIREBASE_MESSAGING_SENDER_ID,
   FIREBASE_APP_ID,
   TRADES_COLLECTION,
+  REDEMPTION_FAILS_COLLECTION,
 } = process.env
 
 const envConfig = loadEnvVariables({
@@ -35,6 +36,7 @@ const envConfig = loadEnvVariables({
   FIREBASE_MESSAGING_SENDER_ID,
   FIREBASE_APP_ID,
   TRADES_COLLECTION,
+  REDEMPTION_FAILS_COLLECTION,
 })
 const appConfig = loadAppConfig()
 
