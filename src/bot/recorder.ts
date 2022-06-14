@@ -1,9 +1,10 @@
 import { UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
 import { logArbitrageStatus } from '../lib/utils/logger'
-import { state } from '../state'
 import { DiscordWrapper, createDiscordMessageData } from '../lib/wrappers/discord'
 import { Collections, createFirebaseDocumentData, saveDocument } from '../lib/wrappers/firebase'
+import { listenForEvent } from '../lib/eventEmitter'
+import { wait } from '../lib/utils/wait'
 
 const getPercentageFromBps = (bps: number) => Number((bps * 100).toFixed(2))
 const getMessageAmount = (amount: number, decimals: number) => (
@@ -46,40 +47,25 @@ const logAndSaveTrade = async (discordWrapper: DiscordWrapper, config: logAndSav
 export const recordArbitrageTrades = async () => {
   const discordWrapper = await DiscordWrapper.init()
 
-  let preArbitrageMessageBalance: number | null = null
+  let preArbitrageUxdBalance: number | null = null
 
-  state.appStatus.watch(async (newStatus, prevStatus) => {
-    // Start arbitrage
-    if (newStatus === 'inArbitrage') {
-      preArbitrageMessageBalance = getMessageAmount(state.uxdChainBalance, UXD_DECIMALS)
+  listenForEvent('arbitrage-start', (uxdChainBalance) => {
+    preArbitrageUxdBalance = getMessageAmount(uxdChainBalance, UXD_DECIMALS)
+  })
+
+  listenForEvent('arbitrage-success', async (uxdChainBalance) => {
+    if (!preArbitrageUxdBalance) {
+      console.log('Pre arbitrage balance was not defined')
       return
     }
 
-    // Remaining SOL from previous failed redemption was swapped for UXD
-    // preArbitrageMessageBalance should always be defined in this case
-    if (newStatus === 'scanning' && prevStatus === 'swappingRemainingSol') {
-      const postArbitrageMessageBalance = getMessageAmount(state.uxdChainBalance, UXD_DECIMALS)
-      await logAndSaveTrade(discordWrapper, {
-        preArbBalance: preArbitrageMessageBalance!,
-        postArbBalance: postArbitrageMessageBalance,
-        success: false,
-      })
+    const postArbitrageUxdBalance = getMessageAmount(uxdChainBalance, UXD_DECIMALS)
+    await logAndSaveTrade(discordWrapper, {
+      preArbBalance: preArbitrageUxdBalance,
+      postArbBalance: postArbitrageUxdBalance,
+      success: true,
+    })
 
-      preArbitrageMessageBalance = null
-      return
-    }
-
-    // Arbitrage was successful
-    // preArbitrageMessageBalance should always be defined in this case
-    if (newStatus === 'scanning' && prevStatus === 'inArbitrage') {
-      const postArbitrageMessageBalance = getMessageAmount(state.uxdChainBalance, UXD_DECIMALS)
-      await logAndSaveTrade(discordWrapper, {
-        preArbBalance: preArbitrageMessageBalance!,
-        postArbBalance: postArbitrageMessageBalance,
-        success: true,
-      })
-
-      preArbitrageMessageBalance = null
-    }
+    preArbitrageUxdBalance = null
   })
 }

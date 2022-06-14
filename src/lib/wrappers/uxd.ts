@@ -28,43 +28,17 @@ const createTransaction = async (
   signer: Keypair,
   instruction: TransactionInstruction,
 ) => {
-  let validUntil: null | number = null
+  const { blockhash: latestBlockHash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
 
-  const update = async () => {
-    const { blockhash: latestBlockHash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
-    validUntil = lastValidBlockHeight
-
-    const transactionConfig: TransactionBlockhashCtor = {
-      blockhash: latestBlockHash,
-      lastValidBlockHeight,
-    }
-    const transaction = new Transaction(transactionConfig)
-
-    transaction.add(instruction)
-    transaction.sign(signer)
-    const serializedTransaction = transaction.serialize()
-    return serializedTransaction
+  const transactionConfig: TransactionBlockhashCtor = {
+    blockhash: latestBlockHash,
+    lastValidBlockHeight,
   }
+  const transaction = new Transaction(transactionConfig)
 
-  /**
-   * @returns True if is valid
-   */
-  const validate = async () => {
-    if (!validUntil) {
-      return false
-    }
-
-    const blockHeight = await connection.getBlockHeight('confirmed')
-    return validUntil > blockHeight
-  }
-
-  const transaction = await update()
-
-  return {
-    transaction,
-    update,
-    validate,
-  }
+  transaction.add(instruction)
+  transaction.sign(signer)
+  return transaction
 }
 
 export class UxdWrapper {
@@ -76,7 +50,7 @@ export class UxdWrapper {
     private connection: Connection,
   ) {}
 
-  async createSignedRedeemRawTransaction(uxdUiBalance: number) {
+  async createRedeemRawTransaction(uxdUiBalance: number) {
     const redeemInstruction = this.client.createRedeemFromMangoDepositoryInstruction(
       uxdUiBalance - 1,
       5,
@@ -86,8 +60,8 @@ export class UxdWrapper {
       config.SOL_PUBLIC_KEY,
       {},
     )
-    const transactionData = await createTransaction(this.connection, config.SOL_PRIVATE_KEY, redeemInstruction)
-    return transactionData
+    const redeemTransaction = await createTransaction(this.connection, config.SOL_PRIVATE_KEY, redeemInstruction)
+    return redeemTransaction
   }
 
   static async init(connection: Connection) {

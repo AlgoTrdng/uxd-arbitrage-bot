@@ -8,13 +8,14 @@ import {
   UxdWrapper,
 } from '../lib/wrappers'
 import { state } from '../state'
-import { sendAndAwaitRawRedeemTransaction } from '../lib/actions/redeem'
+import { sendAndConfirmRedeem, SendRedeemTxError } from '../lib/actions/redeem'
 import { getUiAmount } from '../lib/utils/amount'
 import { swapSolToUxd } from '../lib/actions/swap'
 import { wait } from '../lib/utils/wait'
 import config from '../app.config'
 import { syncSolBalance, syncUxdBalance } from './balance'
 import { MINIMUM_SOL_CHAIN_AMOUNT } from '../constants'
+import { emitEvent } from '../lib/eventEmitter'
 
 /**
  * @returns Price diff percentage
@@ -36,18 +37,16 @@ const executeRedemption = async (
 ) => {
   const preArbitrageUxdBalance = state.uxdChainBalance
   const uxdUiBalance = getUiAmount(preArbitrageUxdBalance, UXD_DECIMALS)
+
+  let redeemTx = await uxdWrapper.createRedeemRawTransaction(uxdUiBalance)
   console.log('⚠ Starting redemption with', uxdUiBalance)
+  let redeemResponse = await sendAndConfirmRedeem(connection, redeemTx)
 
-  const redeemTxData = await uxdWrapper.createSignedRedeemRawTransaction(uxdUiBalance)
-  let redeemTx = redeemTxData.transaction
-
-  let postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, redeemTx)
-  while (!postRedemptionBalances) {
+  while (typeof redeemResponse === 'string') {
     console.log('⚠ Repeating redemption')
-    const isRedeemTxValid = await redeemTxData.validate()
 
-    if (!isRedeemTxValid) {
-      redeemTx = await redeemTxData.update()
+    if (redeemResponse === SendRedeemTxError.BLOCK_HEIGHT_EXCEEDED) {
+      redeemTx = await uxdWrapper.createRedeemRawTransaction(uxdUiBalance)
     }
 
     const currentPriceDiff = await calculatePriceDiff(uxdUiBalance, mangoWrapper, jupiterWrapper)
@@ -57,10 +56,10 @@ const executeRedemption = async (
     }
 
     await wait()
-    postRedemptionBalances = await sendAndAwaitRawRedeemTransaction(connection, redeemTx)
+    redeemResponse = await sendAndConfirmRedeem(connection, redeemTx)
   }
 
-  const { solChainBalance, uxdChainBalance } = postRedemptionBalances
+  const { solChainBalance, uxdChainBalance } = redeemResponse
   state.solChainBalance = solChainBalance
   state.uxdChainBalance = uxdChainBalance
 
@@ -125,6 +124,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
     if (priceDiff > config.minimumPriceDiff) {
       state.appStatus.value = 'inArbitrage'
+      emitEvent('arbitrage-start', state.uxdChainBalance)
 
       // If price difference gets too low while executing redemption, stop arbitrage and continue scanning
       const shouldContinueArbitrage = await executeRedemption(
@@ -141,6 +141,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
       }
 
       await executeSwap(connection, jupiterWrapper)
+      emitEvent('arbitrage-success', state.uxdChainBalance)
 
       state.appStatus.value = 'scanning'
     }

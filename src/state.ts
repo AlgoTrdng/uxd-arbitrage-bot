@@ -1,18 +1,12 @@
-import { ref, Ref } from './lib/reactive'
-
 /*
 scanning -> Not in arbitrage, scanning price differences
-monitoringRemainingSol -> Price diff fallen too low while redeeming, ending arbitrage
-  - different status because of logging
-
-swappingRemainingSol -> Found remaining SOL after arbitrage failed, swaps to UXD
-
 inArbitrage -> Started arbitrage, price diff was high enough
-
 rebalancing -> UXD amount is too high, swapping for UXD
 */
 
-type AppStatus = 'rebalancing' | 'inArbitrage' | 'scanning' | 'monitoringRemainingSol' | 'swappingRemainingSol'
+import { ref, Ref } from './lib/reactive'
+
+type AppStatus = 'rebalancing' | 'inArbitrage' | 'scanning'
 
 type State = {
   uxdChainBalance: number

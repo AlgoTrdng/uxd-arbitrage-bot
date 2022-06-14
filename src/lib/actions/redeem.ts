@@ -1,4 +1,9 @@
-import { ConfirmedTransactionMeta, Connection, SendOptions } from '@solana/web3.js'
+import {
+  ConfirmedTransactionMeta,
+  Connection,
+  SendOptions,
+  Transaction,
+} from '@solana/web3.js'
 
 import { mint } from '../../constants'
 import { wait } from '../utils/wait'
@@ -23,19 +28,47 @@ const sendOptions: SendOptions = {
   maxRetries: 2,
   skipPreflight: true,
 }
-const MAX_WAIT_TIME = 100_000 // MAX_RETRIES * RETRY_TIME + some room for verifying transaction
-const MAX_RETRIES = 12
-const RETRY_TIME = 3_000
+// MAX_RETRIES * RETRY_TIME + almost a minute for verifying if transaction went through
+const MAX_REDEMPTION_TIME_MS = 100_000
+const MAX_RETRIES = 20
+const RETRY_TIME = 2_000
 
-// TODO: Create new transaction once error is returned
-export const sendAndAwaitRawRedeemTransaction = async (connection: Connection, serializedTransaction: Buffer) => {
-  const txid = await connection.sendRawTransaction(serializedTransaction, sendOptions)
-  const sendTransactionTs = getTs()
+export const SendRedeemTxError = {
+  BLOCK_HEIGHT_EXCEEDED: 'blockHeightExceeded',
+  // Max redemption time is exceeded or transaction responds with error
+  TIMEOUT_OR_ERROR: 'transactionTimedOutOrErrored',
+} as const
 
+const watchBlockHeight = async (
+  connection: Connection,
+  transaction: Transaction,
+  startTime: number,
+) => {
+  const txValidUntilBlockHeight = transaction.lastValidBlockHeight!
+
+  while (getTs() - startTime < MAX_REDEMPTION_TIME_MS) {
+    const blockHeight = await connection.getBlockHeight(connection.commitment)
+
+    if (blockHeight > txValidUntilBlockHeight) {
+      return SendRedeemTxError.BLOCK_HEIGHT_EXCEEDED
+    }
+
+    await wait(2000)
+  }
+
+  return SendRedeemTxError.TIMEOUT_OR_ERROR
+}
+
+const forceTxRetriesAndConfirm = async (
+  connection: Connection,
+  serializedTransaction: Buffer,
+  txId: string,
+  startTime: number,
+) => {
+  let lastSendTransactionTs = startTime
   let retries = 0
-  let lastSendTransactionTs = sendTransactionTs
 
-  while (getTs() - sendTransactionTs < MAX_WAIT_TIME) {
+  while (getTs() - startTime < MAX_REDEMPTION_TIME_MS) {
     if (retries < MAX_RETRIES && getTs() - lastSendTransactionTs < RETRY_TIME) {
       retries += 1
       lastSendTransactionTs = getTs()
@@ -43,21 +76,43 @@ export const sendAndAwaitRawRedeemTransaction = async (connection: Connection, s
     }
 
     const response = await Promise.any([
-      connection.getTransaction(txid, { commitment: 'confirmed' }),
+      connection.getTransaction(txId, { commitment: 'confirmed' }),
       wait(5000),
     ])
 
     if (response) {
       if (!response.meta || response.meta.err) {
-        return null
+        console.log(response)
+        return SendRedeemTxError.TIMEOUT_OR_ERROR
       }
 
-      const postBalances = getTransactionData(response.meta)
-      return postBalances
+      return response.meta
     }
 
     await wait(500)
   }
 
-  return null
+  return SendRedeemTxError.TIMEOUT_OR_ERROR
+}
+
+export type RedeemResponse =
+  | typeof SendRedeemTxError[keyof typeof SendRedeemTxError]
+  | ReturnType<typeof getTransactionData>
+
+export const sendAndConfirmRedeem = async (connection: Connection, transaction: Transaction) => {
+  const serializedTransaction = transaction.serialize()
+  const txId = await connection.sendRawTransaction(serializedTransaction, sendOptions)
+  const startTime = getTs()
+
+  const response = await Promise.any([
+    watchBlockHeight(connection, transaction, startTime),
+    forceTxRetriesAndConfirm(connection, serializedTransaction, txId, startTime),
+  ])
+
+  if (typeof response !== 'string') {
+    const postBalances = getTransactionData(response)
+    return postBalances
+  }
+
+  return response
 }
