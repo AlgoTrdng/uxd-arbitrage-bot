@@ -28,6 +28,7 @@ const sendOptions: SendOptions = {
   maxRetries: 2,
   skipPreflight: true,
 }
+
 // MAX_RETRIES * RETRY_TIME + almost a minute for verifying if transaction went through
 const MAX_REDEMPTION_TIME_MS = 100_000
 const MAX_RETRIES = 20

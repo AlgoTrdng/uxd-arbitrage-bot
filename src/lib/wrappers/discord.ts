@@ -29,7 +29,7 @@ export class DiscordWrapper {
     })
   }
 
-  static async init() {
+  static async loginAndFetchChannel() {
     const client = new Client({ intents: [Intents.FLAGS.DIRECT_MESSAGES] })
     await client.login(config.DISCORD_TOKEN)
 

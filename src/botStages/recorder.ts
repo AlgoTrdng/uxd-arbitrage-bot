@@ -45,7 +45,7 @@ const logAndSaveTrade = async (discordWrapper: DiscordWrapper, config: logAndSav
 }
 
 export const recordArbitrageTrades = async () => {
-  const discordWrapper = await DiscordWrapper.init()
+  const discordWrapper = await DiscordWrapper.loginAndFetchChannel()
 
   let preArbitrageUxdBalance: number | null = null
 

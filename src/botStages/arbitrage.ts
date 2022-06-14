@@ -13,7 +13,6 @@ import { getUiAmount } from '../lib/utils/amount'
 import { swapSolToUxd } from '../lib/actions/swap'
 import { wait } from '../lib/utils/wait'
 import config from '../app.config'
-import { syncSolBalance, syncUxdBalance } from './balance'
 import { MINIMUM_SOL_CHAIN_AMOUNT } from '../constants'
 import { emitEvent } from '../lib/eventEmitter'
 
@@ -95,15 +94,15 @@ const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrappe
 
   const { outputAmount } = swapResult
 
-  await syncSolBalance(connection)
+  await state.syncSolBalance(connection)
   while (state.solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT) {
-    await syncSolBalance(connection)
+    await state.syncSolBalance(connection)
     await wait()
   }
 
-  await syncUxdBalance(connection)
+  await state.syncUxdBalance(connection)
   while (state.uxdChainBalance < outputAmount) {
-    await syncUxdBalance(connection)
+    await state.syncUxdBalance(connection)
     await wait()
   }
 }
