@@ -2,7 +2,7 @@ import { Connection } from '@solana/web3.js'
 
 import { startArbitrageLoop } from './bot/arbitrage'
 import { syncBalances, watchRemainingSol } from './bot/balance'
-import { initWrappers } from './wrappers'
+import { initWrappers } from './lib/wrappers'
 import config from './app.config'
 import { recordArbitrageTrades } from './bot/recorder'
 
@@ -13,7 +13,7 @@ import { recordArbitrageTrades } from './bot/recorder'
   await syncBalances(connection)
 
   await recordArbitrageTrades()
-  watchRemainingSol(connection, wrappers.jupiterWrapper)
+  // watchRemainingSol(connection, wrappers.jupiterWrapper)
 
   await startArbitrageLoop(connection, 10_000, wrappers)
 })()

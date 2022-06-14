@@ -7,8 +7,8 @@ import {
   TextChannel,
 } from 'discord.js'
 
-import config from '../app.config'
-import { logger } from '../lib/utils/logger'
+import config from '../../app.config'
+import { logger } from '../utils/logger'
 
 export type EmbedConfig = {
   description?: string

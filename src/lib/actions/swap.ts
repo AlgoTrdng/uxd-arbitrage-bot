@@ -3,7 +3,7 @@ import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js'
 // @ts-ignore
 import { getAssociatedTokenAddress, NATIVE_MINT, closeAccount } from '@solana/spl-token'
 
-import { JupiterWrapper } from '../../wrappers'
+import { JupiterWrapper } from '../wrappers'
 import { MINIMUM_SOL_CHAIN_AMOUNT, mint } from '../../constants'
 import { getChainAmount } from '../utils/amount'
 import config from '../../app.config'

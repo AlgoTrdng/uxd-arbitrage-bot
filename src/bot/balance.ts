@@ -8,8 +8,8 @@ import { getUiAmount } from '../lib/utils/amount'
 import { getTs } from '../lib/utils/getTimestamp'
 import { wait } from '../lib/utils/wait'
 import { state } from '../state'
-import { JupiterWrapper } from '../wrappers'
-import { Collections, saveDocument } from '../wrappers/firebase'
+import { JupiterWrapper } from '../lib/wrappers'
+import { Collections, saveDocument } from '../lib/wrappers/firebase'
 
 export const syncUxdBalance = async (connection: Connection) => {
   const uxdBalance = await fetchSplBalance(connection, mint.UXD)

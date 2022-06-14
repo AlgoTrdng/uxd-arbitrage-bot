@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore, doc, setDoc } from 'firebase/firestore'
 
-import config from '../app.config'
+import config from '../../app.config'
 
 export const Collections = {
   trades: config.TRADES_COLLECTION,

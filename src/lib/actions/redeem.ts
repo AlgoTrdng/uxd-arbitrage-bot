@@ -23,11 +23,11 @@ const sendOptions: SendOptions = {
   maxRetries: 2,
   skipPreflight: true,
 }
-
-const MAX_WAIT_TIME = 60_000 // MAX_RETRIES * RETRY_TIME + some room for verifying transaction
-const MAX_RETRIES = 10
+const MAX_WAIT_TIME = 100_000 // MAX_RETRIES * RETRY_TIME + some room for verifying transaction
+const MAX_RETRIES = 12
 const RETRY_TIME = 3_000
 
+// TODO: Create new transaction once error is returned
 export const sendAndAwaitRawRedeemTransaction = async (connection: Connection, serializedTransaction: Buffer) => {
   const txid = await connection.sendRawTransaction(serializedTransaction, sendOptions)
   const sendTransactionTs = getTs()
@@ -48,7 +48,6 @@ export const sendAndAwaitRawRedeemTransaction = async (connection: Connection, s
     ])
 
     if (response) {
-      console.log(response)
       if (!response.meta || response.meta.err) {
         return null
       }

@@ -2,8 +2,8 @@ import { UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
 import { logArbitrageStatus } from '../lib/utils/logger'
 import { state } from '../state'
-import { DiscordWrapper, createDiscordMessageData } from '../wrappers/discord'
-import { Collections, createFirebaseDocumentData, saveDocument } from '../wrappers/firebase'
+import { DiscordWrapper, createDiscordMessageData } from '../lib/wrappers/discord'
+import { Collections, createFirebaseDocumentData, saveDocument } from '../lib/wrappers/firebase'
 
 const getPercentageFromBps = (bps: number) => Number((bps * 100).toFixed(2))
 const getMessageAmount = (amount: number, decimals: number) => (
@@ -32,7 +32,7 @@ const logAndSaveTrade = async (discordWrapper: DiscordWrapper, config: logAndSav
 
   await Promise.all([
     discordWrapper.sendEmbed(discordMessage),
-    saveDocument(Collections.trades, statusMessage.executedAt.getTime().toString(), statusMessage),
+    // saveDocument(Collections.trades, statusMessage.executedAt.getTime().toString(), statusMessage),
   ])
 
   logArbitrageStatus(

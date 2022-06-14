@@ -6,7 +6,7 @@ import {
   JupiterWrapper,
   MangoWrapper,
   UxdWrapper,
-} from '../wrappers'
+} from '../lib/wrappers'
 import { state } from '../state'
 import { sendAndAwaitRawRedeemTransaction } from '../lib/actions/redeem'
 import { getUiAmount } from '../lib/utils/amount'
@@ -136,7 +136,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
       if (!shouldContinueArbitrage) {
         console.log('😡 Stopping arbitrage, low price diff')
-        state.appStatus.value = 'monitoringRemainingSol'
+        state.appStatus.value = 'scanning'
         continue
       }
 

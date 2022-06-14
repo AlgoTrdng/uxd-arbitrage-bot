@@ -20,8 +20,8 @@ import {
   WSOL,
 } from '@uxd-protocol/uxd-client'
 
-import config from '../app.config'
-import { program } from '../constants'
+import config from '../../app.config'
+import { program } from '../../constants'
 
 const createTransaction = async (
   connection: Connection,
