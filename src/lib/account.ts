@@ -26,23 +26,12 @@ export const fetchLamportsBalance = async (connection: Connection) => {
  * @returns Chain balance of provided SPL token
  */
 export const fetchSplBalance = async (connection: Connection, mintAddress: PublicKey) => {
-  let balance: Balance = null
-
-  while (balance === null) {
-    try {
-      const response = await connection.getParsedTokenAccountsByOwner(config.SOL_PUBLIC_KEY, { mint: mintAddress })
-      // Account does not exist, balance = 0
-      if (!response.value[0]) {
-        balance = 0
-        break
-      }
-
-      const { amount } = response.value[0].account.data.parsed.info.tokenAmount
-      balance = Number(amount)
-    } catch (error) {
-      await wait()
-    }
+  const response = await connection.getParsedTokenAccountsByOwner(config.SOL_PUBLIC_KEY, { mint: mintAddress })
+  // Account does not exist, balance = 0
+  if (!response.value[0]) {
+    return 0
   }
 
-  return balance
+  const { amount } = response.value[0].account.data.parsed.info.tokenAmount
+  return Number(amount)
 }

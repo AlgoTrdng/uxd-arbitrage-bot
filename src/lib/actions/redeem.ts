@@ -36,8 +36,9 @@ const RETRY_TIME = 2_000
 
 export const SendRedeemTxError = {
   BLOCK_HEIGHT_EXCEEDED: 'blockHeightExceeded',
-  // Max redemption time is exceeded or transaction responds with error
-  TIMEOUT_OR_ERROR: 'transactionTimedOutOrErrored',
+  ERROR: 'transactionError',
+  // Max redemption time is exceeded
+  TIMEOUT: 'transactionTimedOut',
 } as const
 
 const watchBlockHeight = async (
@@ -48,7 +49,12 @@ const watchBlockHeight = async (
   const txValidUntilBlockHeight = transaction.lastValidBlockHeight!
 
   while (getTs() - startTime < MAX_REDEMPTION_TIME_MS) {
-    const blockHeight = await connection.getBlockHeight(connection.commitment)
+    let blockHeight = -1
+
+    try {
+      blockHeight = await connection.getBlockHeight(connection.commitment)
+    // eslint-disable-next-line no-empty
+    } catch (error) {}
 
     if (blockHeight > txValidUntilBlockHeight) {
       return SendRedeemTxError.BLOCK_HEIGHT_EXCEEDED
@@ -57,7 +63,7 @@ const watchBlockHeight = async (
     await wait(2000)
   }
 
-  return SendRedeemTxError.TIMEOUT_OR_ERROR
+  return SendRedeemTxError.TIMEOUT
 }
 
 const forceTxRetriesAndConfirm = async (
@@ -81,10 +87,10 @@ const forceTxRetriesAndConfirm = async (
       wait(5000),
     ])
 
-    if (response) {
-      if (!response.meta || response.meta.err) {
+    if (response?.meta) {
+      if (response.meta.err) {
         console.log(response)
-        return SendRedeemTxError.TIMEOUT_OR_ERROR
+        return SendRedeemTxError.ERROR
       }
 
       return response.meta
@@ -93,7 +99,7 @@ const forceTxRetriesAndConfirm = async (
     await wait(500)
   }
 
-  return SendRedeemTxError.TIMEOUT_OR_ERROR
+  return SendRedeemTxError.TIMEOUT
 }
 
 export type RedeemResponse =

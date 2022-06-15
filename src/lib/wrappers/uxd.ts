@@ -22,16 +22,23 @@ import {
 
 import config from '../../app.config'
 import { program } from '../../constants'
+import { force } from '../utils/force'
 
 const createTransaction = async (
   connection: Connection,
   signer: Keypair,
   instruction: TransactionInstruction,
 ) => {
-  const { blockhash: latestBlockHash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
+  const {
+    blockhash,
+    lastValidBlockHeight,
+  } = await force(() => {
+    console.log('Fetching blockHash')
+    return connection.getLatestBlockhash('confirmed')
+  }, { wait: 200 })
 
   const transactionConfig: TransactionBlockhashCtor = {
-    blockhash: latestBlockHash,
+    blockhash,
     lastValidBlockHeight,
   }
   const transaction = new Transaction(transactionConfig)

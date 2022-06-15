@@ -26,6 +26,7 @@ export const swapSolToUxd = async (jupiterWrapper: JupiterWrapper, solUiBalance:
   return swapResult as SwapResultSuccess | null
 }
 
+// TODO: probably won't be needed
 let wSolATAPublicKey: PublicKey | null = null
 
 const getWSolATAPublicKey = async () => {

@@ -49,20 +49,6 @@ export class JupiterWrapper {
     return null
   }
 
-  async getSolToUxdPrice(solUiAmount: number): Promise<number> {
-    try {
-      const bestRouteInfo = await this.fetchBestRouteInfo(mint.SOL, mint.UXD, solUiAmount * (10 ** SOL_DECIMALS))
-
-      const solAmount = bestRouteInfo.inAmount / (10 ** SOL_DECIMALS)
-      const uxdAmount = bestRouteInfo.outAmount / (10 ** UXD_DECIMALS)
-      const solPrice = uxdAmount / solAmount
-      return solPrice
-    } catch (error) {
-      console.log(error)
-      return this.getSolToUxdPrice(solUiAmount)
-    }
-  }
-
   static async init(connection: Connection) {
     const jupiter = await Jupiter.load({
       cluster: `${cluster}-beta` as 'mainnet-beta',
