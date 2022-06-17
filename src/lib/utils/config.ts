@@ -19,7 +19,6 @@ export type EnvConfig = {
   FIREBASE_APP_ID: string
 
   TRADES_COLLECTION: string
-  REDEMPTION_FAILS_COLLECTION: string
 }
 
 export const loadEnvVariables = (envConfig: Record<string, any>) => {

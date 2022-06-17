@@ -33,5 +33,4 @@ FIREBASE_APP_ID=
 
 # firebase collection names
 TRADES_COLLECTION=
-REDEMPTION_FAILS_COLLECTION=
 ```
