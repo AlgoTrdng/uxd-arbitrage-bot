@@ -32,10 +32,10 @@ const createTransaction = async (
   const {
     blockhash,
     lastValidBlockHeight,
-  } = await force(() => {
-    console.log('Fetching blockHash')
-    return connection.getLatestBlockhash('confirmed')
-  }, { wait: 200 })
+  } = await force(
+    () => connection.getLatestBlockhash('confirmed'),
+    { wait: 200 },
+  )
 
   const transactionConfig: TransactionBlockhashCtor = {
     blockhash,

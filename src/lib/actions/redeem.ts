@@ -24,15 +24,15 @@ const getTransactionData = (transactionMeta: ConfirmedTransactionMeta) => {
   }
 }
 
+// MAX_RETRIES * RETRY_TIME (on RPC node should be 2 seconds) = 40
+// + minute than 60 seconds for verifying if transaction went through
+const MAX_REDEMPTION_TIME_MS = 120_000
+const MAX_RETRIES = 20
+
 const sendOptions: SendOptions = {
-  maxRetries: 2,
+  maxRetries: MAX_RETRIES,
   skipPreflight: true,
 }
-
-// MAX_RETRIES * RETRY_TIME + almost a minute for verifying if transaction went through
-const MAX_REDEMPTION_TIME_MS = 100_000
-const MAX_RETRIES = 20
-const RETRY_TIME = 2_000
 
 export const SendRedeemTxError = {
   BLOCK_HEIGHT_EXCEEDED: 'blockHeightExceeded',
@@ -66,22 +66,12 @@ const watchBlockHeight = async (
   return SendRedeemTxError.TIMEOUT
 }
 
-const forceTxRetriesAndConfirm = async (
+const watchTxConfirmation = async (
   connection: Connection,
-  serializedTransaction: Buffer,
   txId: string,
   startTime: number,
 ) => {
-  let lastSendTransactionTs = startTime
-  let retries = 0
-
   while (getTs() - startTime < MAX_REDEMPTION_TIME_MS) {
-    if (retries < MAX_RETRIES && getTs() - lastSendTransactionTs < RETRY_TIME) {
-      retries += 1
-      lastSendTransactionTs = getTs()
-      await connection.sendRawTransaction(serializedTransaction, sendOptions)
-    }
-
     const response = await Promise.any([
       connection.getTransaction(txId, { commitment: 'confirmed' }),
       wait(5000),
@@ -89,7 +79,13 @@ const forceTxRetriesAndConfirm = async (
 
     if (response?.meta) {
       if (response.meta.err) {
-        console.log(response)
+        // Insufficient balance SOL balance for TX, previous TX was went through, should never happen
+        // if happens, make MAX_REDEMPTION_TIME bigger
+        if (response.meta.logMessages?.some((message) => message.includes('Custom program error: 0x8'))) {
+          console.log('Previous TX was successful')
+          return response.meta
+        }
+
         return SendRedeemTxError.ERROR
       }
 
@@ -113,7 +109,7 @@ export const sendAndConfirmRedeem = async (connection: Connection, transaction: 
 
   const response = await Promise.any([
     watchBlockHeight(connection, transaction, startTime),
-    forceTxRetriesAndConfirm(connection, serializedTransaction, txId, startTime),
+    watchTxConfirmation(connection, txId, startTime),
   ])
 
   if (typeof response !== 'string') {

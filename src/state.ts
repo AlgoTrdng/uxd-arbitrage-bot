@@ -14,9 +14,8 @@ import config from './app.config'
 type AppStatus = 're-balancing' | 'inArbitrage' | 'scanning'
 
 export const state = {
-  uxdChainBalance: 400,
+  uxdChainBalance: 0,
   solChainBalance: 0,
-  wrappedSolChainBalance: 0,
 
   appStatus: ref<AppStatus>('scanning'),
 

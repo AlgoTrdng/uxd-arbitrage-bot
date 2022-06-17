@@ -7,7 +7,6 @@ import { MangoWrapper, JupiterWrapper } from '../wrappers'
 const getSolVsUxdJupiterPrice = async (jupiterWrapper: JupiterWrapper, solUiAmount: number): Promise<number> => {
   try {
     const bestRouteInfo = await jupiterWrapper.fetchBestRouteInfo(mint.SOL, mint.UXD, solUiAmount * (10 ** SOL_DECIMALS))
-
     const solAmount = bestRouteInfo.inAmount / (10 ** SOL_DECIMALS)
     const uxdAmount = bestRouteInfo.outAmount / (10 ** UXD_DECIMALS)
     const solPrice = uxdAmount / solAmount

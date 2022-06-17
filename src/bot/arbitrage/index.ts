@@ -12,6 +12,8 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
   const { jupiterWrapper, mangoWrapper, uxdWrapper } = wrappers
 
   mangoWrapper.watchSolPerpAsks()
+  // wait for ^ websocket to establish
+  await wait(5000)
 
   while (true) {
     await wait(intervalMs)
