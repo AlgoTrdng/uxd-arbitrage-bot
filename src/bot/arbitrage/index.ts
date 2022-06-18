@@ -2,7 +2,7 @@ import { Connection } from '@solana/web3.js'
 
 import { Wrappers } from '../../lib/wrappers'
 import { executeRedemption, executeSwap } from './utils'
-import { state } from '../../state'
+import { AppStatuses, state } from '../../state'
 import { getPriceDifference } from '../../lib/utils/getPriceDifference'
 import { wait } from '../../lib/utils/wait'
 import { emitEvent } from '../../lib/utils/eventEmitter'
@@ -17,7 +17,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
   while (true) {
     await wait(intervalMs)
-    if (state.appStatus.value !== 'scanning') {
+    if (state.appStatus.value !== AppStatuses.SCANNING) {
       continue
     }
 
@@ -25,7 +25,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     console.log('👋 Price diff: ', priceDiff)
 
     if (priceDiff > config.minimumPriceDiff) {
-      state.appStatus.value = 'inArbitrage'
+      state.appStatus.value = AppStatuses.REDEEMING
       emitEvent('arbitrage-start', state.uxdChainBalance)
 
       // If price difference gets too low while executing redemption, stop arbitrage and continue scanning
@@ -38,14 +38,15 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
       if (!shouldContinueArbitrage) {
         console.log('😡 Stopping arbitrage, low price diff')
-        state.appStatus.value = 'scanning'
+        state.appStatus.value = AppStatuses.SCANNING
         continue
       }
 
+      state.appStatus.value = AppStatuses.SWAPPING
       await executeSwap(connection, jupiterWrapper)
       emitEvent('arbitrage-success', state.uxdChainBalance)
 
-      state.appStatus.value = 'scanning'
+      state.appStatus.value = AppStatuses.SCANNING
     }
   }
 }

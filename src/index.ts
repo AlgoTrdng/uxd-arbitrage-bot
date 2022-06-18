@@ -2,8 +2,9 @@ import { Connection } from '@solana/web3.js'
 
 import { startArbitrageLoop } from './bot/arbitrage'
 import { initWrappers } from './lib/wrappers'
-import { recordArbitrageTrades } from './bot/recorder'
+import { recordArbitrageTrades, watchAndSyncActivities } from './bot/recorder'
 import { state } from './state'
+import { DiscordWrapper } from './lib/wrappers/discord'
 import config from './app.config'
 
 (async () => {
@@ -12,6 +13,9 @@ import config from './app.config'
 
   await state.syncAllBalances(connection)
 
-  await recordArbitrageTrades()
+  const discordWrapper = await DiscordWrapper.loginAndFetchChannel()
+  await recordArbitrageTrades(discordWrapper)
+  watchAndSyncActivities(discordWrapper)
+
   await startArbitrageLoop(connection, 10_000, wrappers)
 })()

@@ -8,6 +8,7 @@ import {
 } from 'discord.js'
 
 import config from '../../app.config'
+import { AppStatuses } from '../../state'
 import { logger } from '../utils/logger'
 
 export type EmbedConfig = {
@@ -37,6 +38,25 @@ export class DiscordWrapper {
     await channel.send('🤖 Arbitrage bot started, scanning for arbitrage and listening for updates.')
 
     return new DiscordWrapper(client, channel)
+  }
+
+  setActivity(activity: typeof AppStatuses[keyof typeof AppStatuses]) {
+    switch (activity) {
+      case AppStatuses.SCANNING:
+        this.client.user?.setActivity('markets', { type: 'WATCHING' })
+        break
+      case AppStatuses.SWAPPING:
+        this.client.user?.setActivity('swapping SOL for UXD', { type: 'PLAYING' })
+        break
+      case AppStatuses.REDEEMING:
+        this.client.user?.setActivity('redeeming UXD for SOL', { type: 'PLAYING' })
+        break
+      case AppStatuses.RE_BALANCING:
+        this.client.user?.setActivity('re-balancing', { type: 'PLAYING' })
+        break
+      default:
+        console.error('Invalid activity', activity)
+    }
   }
 
   async sendEmbed(embedConfig: EmbedConfig) {

@@ -2,6 +2,7 @@ import { UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
 import { listenForEvent } from '../../lib/utils/eventEmitter'
 import { DiscordWrapper } from '../../lib/wrappers/discord'
+import { AppStatuses, state } from '../../state'
 import { logAndSaveTrade } from './utils'
 
 export const getMessageAmount = (amount: number, decimals: number) => (
@@ -11,9 +12,7 @@ export const getMessageAmount = (amount: number, decimals: number) => (
   )
 )
 
-export const recordArbitrageTrades = async () => {
-  const discordWrapper = await DiscordWrapper.loginAndFetchChannel()
-
+export const recordArbitrageTrades = async (discordWrapper: DiscordWrapper) => {
   let preArbitrageUxdBalance: number | null = null
 
   listenForEvent('arbitrage-start', (uxdChainBalance) => {
@@ -34,5 +33,13 @@ export const recordArbitrageTrades = async () => {
     })
 
     preArbitrageUxdBalance = null
+  })
+}
+
+export const watchAndSyncActivities = (discordWrapper: DiscordWrapper) => {
+  discordWrapper.setActivity(AppStatuses.SCANNING)
+
+  state.appStatus.watch((currentStatus) => {
+    discordWrapper.setActivity(currentStatus)
   })
 }

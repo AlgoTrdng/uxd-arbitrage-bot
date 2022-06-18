@@ -6,18 +6,18 @@ import { ref } from './lib/utils/ref'
 import { force } from './lib/utils/force'
 import config from './app.config'
 
-/**
- * scanning -> Not in arbitrage, scanning price difference
- * inArbitrage -> Started arbitrage, price diff was high enough
- * re-balancing -> UXD amount is too high, swapping for UXD
- */
-type AppStatus = 're-balancing' | 'inArbitrage' | 'scanning'
+export const AppStatuses = {
+  SCANNING: 'SCANNING',
+  REDEEMING: 'REDEEMING',
+  SWAPPING: 'SWAPPING',
+  RE_BALANCING: 'RE_BALANCING',
+} as const
 
 export const state = {
   uxdChainBalance: 0,
   solChainBalance: 0,
 
-  appStatus: ref<AppStatus>('scanning'),
+  appStatus: ref<keyof typeof AppStatuses>('SCANNING'),
 
   async syncUxdBalance(connection: Connection) {
     const uxdBalance = await force(
