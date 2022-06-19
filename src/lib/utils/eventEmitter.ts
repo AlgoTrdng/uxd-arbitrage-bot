@@ -3,6 +3,8 @@ import EventEmitter from 'events'
 type Events = {
   'arbitrage-success': (uxdChainBalance: number) => void
   'arbitrage-start': (uxdChainBalance: number) => void
+
+  're-balance-success': (config: { preUxdChainBalance: number, postUxdChainBalance: number }) => void
 }
 
 type EventName = keyof Events

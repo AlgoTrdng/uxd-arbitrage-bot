@@ -42,8 +42,8 @@ type AppConfig = {
   minimumPriceDiff: number
   log: boolean
 
-  defaultUxdBalance: number
-  maximumUxdBalance: number
+  defaultUxdUiBalance: number
+  maximumUxdUiBalance: number
 }
 
 export const loadAppConfig = () => {

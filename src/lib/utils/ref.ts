@@ -15,10 +15,11 @@ export class Ref<V extends unknown> {
   }
 
   set value(val: V) {
-    this._watchers.forEach((cb) => {
-      cb.call(null, val, this._value)
-    })
+    const oldValue = this._value
     this._value = val
+    this._watchers.forEach((cb) => {
+      cb.call(null, val, oldValue)
+    })
   }
 
   watch(watcher: Watcher<V>) {

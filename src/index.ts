@@ -2,10 +2,10 @@ import { Connection } from '@solana/web3.js'
 
 import { startArbitrageLoop } from './bot/arbitrage'
 import { initWrappers } from './lib/wrappers'
-import { recordArbitrageTrades, watchAndSyncActivities } from './bot/recorder'
+import { initStatsLogging } from './bot/logging'
 import { state } from './state'
-import { DiscordWrapper } from './lib/wrappers/discord'
 import config from './app.config'
+import { watchStatusAndReBalance } from './bot/reBalance'
 
 (async () => {
   const connection = new Connection(config.SOL_RPC_ENDPOINT, 'confirmed')
@@ -13,9 +13,7 @@ import config from './app.config'
 
   await state.syncAllBalances(connection)
 
-  const discordWrapper = await DiscordWrapper.loginAndFetchChannel()
-  await recordArbitrageTrades(discordWrapper)
-  watchAndSyncActivities(discordWrapper)
-
+  await initStatsLogging()
+  watchStatusAndReBalance(connection, wrappers.jupiterWrapper)
   await startArbitrageLoop(connection, 10_000, wrappers)
 })()

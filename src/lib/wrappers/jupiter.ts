@@ -4,10 +4,23 @@ import { SOL_DECIMALS, UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
 import config from '../../app.config'
 import { mint } from '../../constants'
+import { force } from '../utils/force'
 
 const { SOL_PRIVATE_KEY, cluster } = config
 
-type SwapResult = {
+/**
+ * Config for Jupiter swap
+ *
+ * default slippage - 0.5%
+ */
+type SwapConfig = {
+  inputMint: PublicKey,
+  outputMint: PublicKey,
+  swapChainAmount: number,
+  slippagePercentage?: number
+}
+
+type SwapResultSuccess = {
   txid: string
   inputAmount: number
   outputAmount: number
@@ -20,6 +33,23 @@ export class JupiterWrapper {
   constructor(connection: Connection, jupiter: Jupiter) {
     this.connection = connection
     this.jupiter = jupiter
+  }
+
+  async fetchRouteInfoAndSwap(swapConfig: SwapConfig) {
+    const _slippage = swapConfig.slippagePercentage || 0.5
+    const { inputMint, outputMint, swapChainAmount } = swapConfig
+
+    const routeInfo = await this.fetchBestRouteInfo(
+      inputMint,
+      outputMint,
+      swapChainAmount,
+      _slippage,
+    )
+    const swapResult = await force(
+      () => this.swap(routeInfo),
+      { wait: 200 },
+    )
+    return swapResult
   }
 
   /**
@@ -44,7 +74,7 @@ export class JupiterWrapper {
     const swapResult = await execute()
     // @ts-ignore
     if (swapResult?.txid) {
-      return swapResult as SwapResult
+      return swapResult as SwapResultSuccess
     }
     return null
   }

@@ -3,6 +3,6 @@
   "cluster": "mainnet",
   "log": true,
 
-  "defaultUxdBalance": 100,
-  "maximumUxdBalance": 300
+  "defaultUxdUiBalance": 100,
+  "maximumUxdUiBalance": 300
 }
