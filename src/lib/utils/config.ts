@@ -1,47 +1,49 @@
-import { Keypair, PublicKey } from '@solana/web3.js'
-import bs58 from 'bs58'
 import fs from 'fs'
 import path from 'path'
+import dotenv from 'dotenv'
 
-export type EnvConfig = {
-  SOL_RPC_ENDPOINT: string
-  SOL_PRIVATE_KEY: Keypair
-  SOL_PUBLIC_KEY: PublicKey
+dotenv.config()
 
-  DISCORD_TOKEN: string
-  DISCORD_CHANNEL_ID: string
+export const loadEnvVariables = () => {
+  const _envConfig = {
+    SOL_RPC_ENDPOINT: process.env.SOL_RPC_ENDPOINT,
+    SOL_PRIVATE_KEY: process.env.SOL_PRIVATE_KEY,
 
-  FIREBASE_API_KEY: string
-  FIREBASE_AUTH_DOMAIN: string
-  FIREBASE_PROJECT_ID: string
-  FIREBASE_STORAGE_BUCKET: string
-  FIREBASE_MESSAGING_SENDER_ID: string
-  FIREBASE_APP_ID: string
+    DISCORD_TOKEN: process.env.DISCORD_TOKEN,
+    DISCORD_CHANNEL_ID: process.env.DISCORD_CHANNEL_ID,
+    DISCORD_BOT_USER_ID: process.env.DISCORD_BOT_USER_ID,
 
-  TRADES_COLLECTION: string
-}
+    FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
+    FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
+    FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    FIREBASE_APP_ID: process.env.FIREBASE_APP_ID,
 
-export const loadEnvVariables = (envConfig: Record<string, any>) => {
-  Object.entries(envConfig).forEach(([key, value]) => {
+    TRADES_COLLECTION: process.env.TRADES_COLLECTION,
+  }
+
+  const missingVariables: string[] = []
+  Object.entries(_envConfig).forEach(([key, value]) => {
     if (typeof value !== 'string' || !value.length) {
-      throw Error(`Missing ${key} ENV variable`)
+      missingVariables.push(key)
     }
   })
 
-  const decodedPrivateKey = bs58.decode(envConfig.SOL_PRIVATE_KEY)
-  const keyPair = Keypair.fromSecretKey(decodedPrivateKey)
+  if (missingVariables.length) {
+    throw Error(`Missing ENV variables: ${missingVariables.join(' ,')}`)
+  }
 
-  return {
-    ...envConfig,
-    SOL_PRIVATE_KEY: keyPair,
-    SOL_PUBLIC_KEY: keyPair.publicKey,
-  } as EnvConfig
+  return _envConfig as Record<keyof typeof _envConfig, string>
 }
 
-export type AppConfig = {
+type AppConfig = {
   cluster: 'mainnet'
   minimumPriceDiff: number
   log: boolean
+
+  defaultUxdBalance: number
+  maximumUxdBalance: number
 }
 
 export const loadAppConfig = () => {

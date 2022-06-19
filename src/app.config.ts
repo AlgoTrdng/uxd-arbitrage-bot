@@ -1,46 +1,22 @@
-import dotenv from 'dotenv'
+import { Keypair } from '@solana/web3.js'
+import bs58 from 'bs58'
 
 import {
   loadEnvVariables,
   loadAppConfig,
-  AppConfig,
-  EnvConfig,
 } from './lib/utils/config'
 
-dotenv.config()
-
-const {
-  SOL_PRIVATE_KEY,
-  SOL_RPC_ENDPOINT,
-  DISCORD_TOKEN,
-  DISCORD_CHANNEL_ID,
-  FIREBASE_API_KEY,
-  FIREBASE_AUTH_DOMAIN,
-  FIREBASE_PROJECT_ID,
-  FIREBASE_STORAGE_BUCKET,
-  FIREBASE_MESSAGING_SENDER_ID,
-  FIREBASE_APP_ID,
-  TRADES_COLLECTION,
-} = process.env
-
-const envConfig = loadEnvVariables({
-  SOL_PRIVATE_KEY,
-  SOL_RPC_ENDPOINT,
-  DISCORD_TOKEN,
-  DISCORD_CHANNEL_ID,
-  FIREBASE_API_KEY,
-  FIREBASE_AUTH_DOMAIN,
-  FIREBASE_PROJECT_ID,
-  FIREBASE_STORAGE_BUCKET,
-  FIREBASE_MESSAGING_SENDER_ID,
-  FIREBASE_APP_ID,
-  TRADES_COLLECTION,
-})
+const { SOL_PRIVATE_KEY, ...envConfig } = loadEnvVariables()
 const appConfig = loadAppConfig()
 
-const config: AppConfig & EnvConfig = {
+const decodedPrivateKey = bs58.decode(SOL_PRIVATE_KEY)
+const keyPair = Keypair.fromSecretKey(decodedPrivateKey)
+
+const config = {
   ...envConfig,
   ...appConfig,
-}
+  SOL_PRIVATE_KEY: keyPair,
+  SOL_PUBLIC_KEY: keyPair.publicKey,
+} as const
 
 export default config
