@@ -9,7 +9,6 @@ import {
 
 import config from '../../app.config'
 import { AppStatuses } from '../../state'
-import { logger } from '../utils/logger'
 
 export type EmbedConfig = {
   description?: string
@@ -24,10 +23,6 @@ export class DiscordWrapper {
   constructor(client: Client, channel: TextChannel) {
     this.client = client
     this.channel = channel
-
-    this.client.on('ready', () => {
-      logger('STATUS', 'Discord client ready!')
-    })
   }
 
   static async loginAndFetchChannel() {

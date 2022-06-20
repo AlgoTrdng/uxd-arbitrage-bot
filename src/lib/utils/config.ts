@@ -11,7 +11,6 @@ export const loadEnvVariables = () => {
 
     DISCORD_TOKEN: process.env.DISCORD_TOKEN,
     DISCORD_CHANNEL_ID: process.env.DISCORD_CHANNEL_ID,
-    DISCORD_BOT_USER_ID: process.env.DISCORD_BOT_USER_ID,
 
     FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
     FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,

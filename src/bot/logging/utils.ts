@@ -1,16 +1,15 @@
-import { logArbitrageStatus } from '../../lib/utils/logger'
 import { DiscordWrapper, createDiscordMessageData } from '../../lib/wrappers/discord'
 import { createFirebaseDocumentData, saveDocument, Collections } from '../../lib/wrappers/firebase'
 
 const getPercentageFromBps = (bps: number) => Number((bps * 100).toFixed(2))
 
-type logAndSaveTradeConfig = {
+type LogAndSaveTradeConfig = {
   preArbBalance: number
   postArbBalance: number
   success: boolean
 }
 
-export const logAndSaveTrade = async (discordWrapper: DiscordWrapper, config: logAndSaveTradeConfig) => {
+export const logAndSaveTrade = async (discordWrapper: DiscordWrapper, config: LogAndSaveTradeConfig) => {
   const { preArbBalance, postArbBalance, success } = config
   const statusMessage = createFirebaseDocumentData(preArbBalance, postArbBalance, success)
   const profitPercentage = getPercentageFromBps(statusMessage.profit)
@@ -26,10 +25,13 @@ export const logAndSaveTrade = async (discordWrapper: DiscordWrapper, config: lo
     saveDocument(Collections.trades, statusMessage.executedAt.getTime().toString(), statusMessage),
   ])
 
-  logArbitrageStatus(
-    statusMessage.oldAmount,
-    statusMessage.newAmount,
-    profitPercentage,
-    statusMessage.wasSuccessful,
+  console.log(
+    `Executed arbitrage; profit: ${
+      profitPercentage
+    }, oldAmount: ${
+      statusMessage.oldAmount
+    }, newAmount: ${
+      statusMessage.newAmount
+    }`,
   )
 }

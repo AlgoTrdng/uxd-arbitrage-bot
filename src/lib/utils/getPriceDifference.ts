@@ -4,7 +4,7 @@ import { mint } from '../../constants'
 import { getUiAmount } from './amount'
 import { MangoWrapper, JupiterWrapper } from '../wrappers'
 
-const getSolVsUxdJupiterPrice = async (jupiterWrapper: JupiterWrapper, solUiAmount: number): Promise<number> => {
+const getSolVsUxdJupiterPrice = async (jupiterWrapper: JupiterWrapper, solUiAmount: number) => {
   try {
     const bestRouteInfo = await jupiterWrapper.fetchBestRouteInfo(mint.SOL, mint.UXD, solUiAmount * (10 ** SOL_DECIMALS))
     const solAmount = bestRouteInfo.inAmount / (10 ** SOL_DECIMALS)
@@ -13,8 +13,7 @@ const getSolVsUxdJupiterPrice = async (jupiterWrapper: JupiterWrapper, solUiAmou
     return solPrice
   } catch (error) {
     console.log(error)
-    const price = await getSolVsUxdJupiterPrice(jupiterWrapper, solUiAmount)
-    return price
+    return null
   }
 }
 
@@ -26,6 +25,10 @@ export const getPriceDifference = async (uxdChainBalance: number, mangoWrapper: 
 
   const [mangoPrice, solUiAmount] = MangoWrapper.getSolPerpPrice(uxdUiBalance, mangoWrapper.asks)
   const jupiterPrice = await getSolVsUxdJupiterPrice(jupiterWrapper, solUiAmount)
+
+  if (!jupiterPrice) {
+    return -1
+  }
 
   const priceDiff = ((jupiterPrice / mangoPrice - 1) * 100).toFixed(2)
   return Number(priceDiff)

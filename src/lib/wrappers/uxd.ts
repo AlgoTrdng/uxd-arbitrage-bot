@@ -4,6 +4,7 @@ import {
   TransactionInstruction,
   Keypair,
   TransactionBlockhashCtor,
+  PublicKey,
 } from '@solana/web3.js'
 import {
   Controller,
@@ -21,31 +22,11 @@ import {
 } from '@uxd-protocol/uxd-client'
 
 import config from '../../app.config'
-import { program } from '../../constants'
 import { force } from '../utils/force'
 
-const createTransaction = async (
-  connection: Connection,
-  signer: Keypair,
-  instruction: TransactionInstruction,
-) => {
-  const {
-    blockhash,
-    lastValidBlockHeight,
-  } = await force(
-    () => connection.getLatestBlockhash('confirmed'),
-    { wait: 200 },
-  )
-
-  const transactionConfig: TransactionBlockhashCtor = {
-    blockhash,
-    lastValidBlockHeight,
-  }
-  const transaction = new Transaction(transactionConfig)
-
-  transaction.add(instruction)
-  transaction.sign(signer)
-  return transaction
+type CreateTransactionConfig = {
+  signer: Keypair
+  instruction: TransactionInstruction
 }
 
 export class UxdWrapper {
@@ -57,6 +38,26 @@ export class UxdWrapper {
     private connection: Connection,
   ) {}
 
+  private async createAndSignRawTransaction({ signer, instruction }: CreateTransactionConfig) {
+    const {
+      blockhash,
+      lastValidBlockHeight,
+    } = await force(
+      () => this.connection.getLatestBlockhash('confirmed'),
+      { wait: 200 },
+    )
+
+    const transactionConfig: TransactionBlockhashCtor = {
+      blockhash,
+      lastValidBlockHeight,
+    }
+    const transaction = new Transaction(transactionConfig)
+
+    transaction.add(instruction)
+    transaction.sign(signer)
+    return transaction
+  }
+
   async createRedeemRawTransaction(uxdUiBalance: number) {
     const redeemInstruction = this.client.createRedeemFromMangoDepositoryInstruction(
       uxdUiBalance - 1,
@@ -67,15 +68,21 @@ export class UxdWrapper {
       config.SOL_PUBLIC_KEY,
       {},
     )
-    const redeemTransaction = await createTransaction(this.connection, config.SOL_PRIVATE_KEY, redeemInstruction)
+
+    const redeemTransaction = await this.createAndSignRawTransaction({
+      signer: config.SOL_PRIVATE_KEY,
+      instruction: redeemInstruction,
+    })
     return redeemTransaction
   }
 
   static async init(connection: Connection) {
-    const controller = new Controller('UXD', UXD_DECIMALS, program.UXD)
+    const UXD_PROGRAM_PUBLIC_KEY = new PublicKey('UXD8m9cvwk4RcSxnX2HZ9VudQCEeDH6fRnB4CAP57Dr')
+
+    const controller = new Controller('UXD', UXD_DECIMALS, UXD_PROGRAM_PUBLIC_KEY)
     const mango = await createAndInitializeMango(connection, config.cluster as 'mainnet')
-    const depository = new MangoDepository(WSOL, 'SOL', SOL_DECIMALS, USDC, 'USDC', USDC_DECIMALS, program.UXD)
-    const client = new UXDClient(program.UXD)
+    const depository = new MangoDepository(WSOL, 'SOL', SOL_DECIMALS, USDC, 'USDC', USDC_DECIMALS, UXD_PROGRAM_PUBLIC_KEY)
+    const client = new UXDClient(UXD_PROGRAM_PUBLIC_KEY)
 
     return new UxdWrapper(
       client,

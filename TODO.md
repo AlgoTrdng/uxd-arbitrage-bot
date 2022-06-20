@@ -5,10 +5,6 @@
 - Dynamic position size
   - Lower the size of positions based on transaction without profit and vice versa
 
-- re-balancing (?)
-
 # Analytics
 
 - (1) Keep track of price differences before arbitrage happens
-
-- Keep track of elapsed time of redemption and swaps relation with profits to determine whether to check price diff after every transaction sent

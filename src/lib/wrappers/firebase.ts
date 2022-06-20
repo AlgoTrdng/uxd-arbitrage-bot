@@ -22,7 +22,7 @@ export const saveDocument = async (collectionName: string, id: string, document:
   await setDoc(newDocumentReference, document)
 }
 
-type firebaseDocumentData = {
+type FirebaseDocumentData = {
   oldAmount: number
   newAmount: number
   profit: number
@@ -35,7 +35,7 @@ export const createFirebaseDocumentData = (
   preArbitrageUiBalance: number,
   postArbitrageUiBalance: number,
   success: boolean,
-): firebaseDocumentData => {
+): FirebaseDocumentData => {
   const profitBps = postArbitrageUiBalance / preArbitrageUiBalance - 1
   return {
     oldAmount: preArbitrageUiBalance,

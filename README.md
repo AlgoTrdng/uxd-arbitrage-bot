@@ -2,17 +2,17 @@
 
 ## Setup
 
-- Set app config in `src/app.config.ts`
+- Set app config in `app.config.json`
 
-```js
-const config: Config = {
-  ...,
-  CLUSTER: '', // mainnet
-  MIN_ARB_PERCENTAGE: number, // minimum price percentage - 0.2 is 0.2%
-  LOG: boolean, // if true, will log bot updates like status, swaps and redemptions
-  ...,
+```json
+{
+  "minimumPriceDiff": number, // minimum price percentage - 0.2 is 0.2%
+  "cluster": "", // mainnet
+  "log": boolean, // if true, will log bot updates like status, swaps and redemptions
+
+  "defaultUxdUiBalance": number,
+  "maximumUxdUiBalance": number
 }
-
 ```
 
 - Set env variables in `.env`

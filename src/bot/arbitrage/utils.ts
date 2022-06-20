@@ -1,9 +1,8 @@
 import { Connection } from '@solana/web3.js'
-import { UXD_DECIMALS, SOL_DECIMALS } from '@uxd-protocol/uxd-client'
+import { UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
 import { MINIMUM_SOL_CHAIN_AMOUNT, mint } from '../../constants'
 import { sendAndConfirmRedeem, SendRedeemTxError } from '../../lib/actions/redeem'
-import { swapSolToUxd } from '../../lib/actions/swap'
 import { getUiAmount } from '../../lib/utils/amount'
 import { getPriceDifference } from '../../lib/utils/getPriceDifference'
 import { wait } from '../../lib/utils/wait'
@@ -54,11 +53,14 @@ export const executeRedemption = async (
 }
 
 export const executeSwap = async (connection: Connection, jupiterWrapper: JupiterWrapper) => {
-  const solUiBalance = getUiAmount(state.solChainBalance, SOL_DECIMALS)
-
-  console.log('💱 Starting swap', solUiBalance)
+  console.log('💱 Starting swap', state.solChainBalance)
   const startUxdBalance = state.uxdChainBalance
-  let swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
+  const safeSolAmount = state.solChainBalance - MINIMUM_SOL_CHAIN_AMOUNT
+  let swapResult = await jupiterWrapper.fetchRouteInfoAndSwap({
+    inputMint: mint.SOL,
+    outputMint: mint.UXD,
+    swapChainAmount: safeSolAmount,
+  })
 
   while (!swapResult) {
     console.log('💱 Repeating swap', swapResult)
@@ -78,11 +80,16 @@ export const executeSwap = async (connection: Connection, jupiterWrapper: Jupite
     }
 
     await wait()
-    swapResult = await swapSolToUxd(jupiterWrapper, solUiBalance)
+    swapResult = await jupiterWrapper.fetchRouteInfoAndSwap({
+      inputMint: mint.SOL,
+      outputMint: mint.UXD,
+      swapChainAmount: safeSolAmount,
+    })
   }
 
   await state.syncSolBalance(connection)
-  // + 0.5 SOL to account for jupiter swapping lower amount than provided
+  // + 0.5 SOL to account
+  // in case of jupiter swapping lower amount than provided
   while (state.solChainBalance > MINIMUM_SOL_CHAIN_AMOUNT + 50_000_000) {
     await state.syncSolBalance(connection)
     await wait()
