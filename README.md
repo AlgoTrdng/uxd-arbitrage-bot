@@ -2,6 +2,12 @@
 
 ## Setup
 
+- Install dependencies
+
+```sh
+npm i
+```
+
 - Set app config in `app.config.json`
 
 ```json
@@ -24,13 +30,25 @@ DISCORD_TOKEN=Discord BOT token secret
 DISCORD_CHANNEL_ID=Discord channel ID
 
 # firebase config
-FIREBASE_API_KEY=
-FIREBASE_AUTH_DOMAIN=
 FIREBASE_PROJECT_ID=
-FIREBASE_STORAGE_BUCKET=
-FIREBASE_MESSAGING_SENDER_ID=
-FIREBASE_APP_ID=
+FIREBASE_AUTH_UID=
 
 # firebase collection names
 TRADES_COLLECTION=
+```
+
+- Set firebase credentials in:
+  - `firebase-admin-credentials.prod.json` for production
+  - `firebase-admin-credentials.dev.json` for development
+
+## Start bot
+
+- Development
+```sh
+npm run start:dev
+```
+
+- Production
+```sh
+npm run start:prod
 ```

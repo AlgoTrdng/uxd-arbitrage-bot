@@ -1,5 +1,9 @@
-import { initializeApp } from 'firebase/app'
-import { getFirestore, doc, setDoc } from 'firebase/firestore'
+/* eslint-disable import/no-unresolved */
+import { initializeApp } from 'firebase-admin/app'
+import { getFirestore } from 'firebase-admin/firestore'
+/* eslint-enable import/no-unresolved */
+import { credential } from 'firebase-admin'
+import path from 'path'
 
 import config from '../../app.config'
 
@@ -7,19 +11,27 @@ export const Collections = {
   trades: config.TRADES_COLLECTION,
 }
 
+const getFirebaseConfigPath = () => {
+  const envArg = process.argv[2]
+  const ENV = envArg.split('=')[1]
+
+  if (ENV !== 'prod' && ENV !== 'dev') {
+    throw Error('Missing ENV environment variable')
+  }
+
+  const firebaseConfigFilePath = path.join(__dirname, `../../../firebase-admin-credentials.${ENV}.json`)
+  return firebaseConfigFilePath
+}
+
 const app = initializeApp({
-  apiKey: config.FIREBASE_API_KEY,
-  authDomain: config.FIREBASE_AUTH_DOMAIN,
-  projectId: config.FIREBASE_PROJECT_ID,
-  storageBucket: config.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
-  appId: config.FIREBASE_APP_ID,
+  credential: credential.cert(getFirebaseConfigPath()),
+  databaseURL: `https://${config.FIREBASE_PROJECT_ID}.europe-west1.firebasedatabase.app`,
 })
 const database = getFirestore(app)
 
 export const saveDocument = async (collectionName: string, id: string, document: any) => {
-  const newDocumentReference = doc(database, collectionName, id)
-  await setDoc(newDocumentReference, document)
+  const docRef = database.doc(`${collectionName}/${id}`)
+  await docRef.set(document)
 }
 
 type FirebaseDocumentData = {
