@@ -12,14 +12,13 @@ export const Collections = {
 }
 
 const getFirebaseConfigPath = () => {
-  const envArg = process.argv[2]
-  const ENV = envArg.split('=')[1]
+  const { APP_ENV } = process.env
 
-  if (ENV !== 'prod' && ENV !== 'dev') {
+  if (APP_ENV !== 'prod' && APP_ENV !== 'dev') {
     throw Error('Missing ENV environment variable')
   }
 
-  const firebaseConfigFilePath = path.join(__dirname, `../../../firebase-admin-credentials.${ENV}.json`)
+  const firebaseConfigFilePath = path.join(__dirname, `../../../firebase-admin-credentials.${APP_ENV}.json`)
   return firebaseConfigFilePath
 }
 
