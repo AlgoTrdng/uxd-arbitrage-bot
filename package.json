@@ -1,6 +1,6 @@
 {
   "name": "uxd-arb-bot",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "index.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
@@ -28,7 +28,7 @@
     "@jup-ag/core": "^1.0.0-beta.27",
     "@solana/spl-token": "^0.2.0",
     "@solana/web3.js": "^1.41.10",
-    "@uxd-protocol/uxd-client": "^1.0.0",
+    "@uxd-protocol/uxd-client": "^2.0.0",
     "bs58": "^5.0.0",
     "discord.js": "^13.7.0",
     "dotenv": "^16.0.1",

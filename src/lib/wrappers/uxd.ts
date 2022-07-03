@@ -1,3 +1,5 @@
+// @ts-ignore
+import { createAssociatedTokenAccount, getAssociatedTokenAddress } from '@solana/spl-token'
 import {
   Connection,
   Transaction,
@@ -38,6 +40,23 @@ export class UxdWrapper {
     private connection: Connection,
   ) {}
 
+  private async createCollateralATA() {
+    const collateralATAPublicKey = await getAssociatedTokenAddress(
+      this.depository.collateralMint,
+      config.SOL_PUBLIC_KEY,
+    ) as PublicKey
+    const collateralATAInfo = await this.connection.getAccountInfo(collateralATAPublicKey)
+
+    if (!collateralATAInfo?.lamports) {
+      await createAssociatedTokenAccount(
+        this.connection,
+        config.SOL_PRIVATE_KEY,
+        this.depository.collateralMint,
+        config.SOL_PUBLIC_KEY,
+      )
+    }
+  }
+
   private async createAndSignRawTransaction({ signer, instruction }: CreateTransactionConfig) {
     const {
       blockhash,
@@ -59,7 +78,9 @@ export class UxdWrapper {
   }
 
   async createRedeemRawTransaction(uxdUiBalance: number) {
-    const redeemInstruction = this.client.createRedeemFromMangoDepositoryInstruction(
+    await this.createCollateralATA()
+
+    const redeemInstruction = await this.client.createRedeemFromMangoDepositoryInstruction(
       uxdUiBalance - 1,
       5,
       this.controller,
@@ -68,7 +89,6 @@ export class UxdWrapper {
       config.SOL_PUBLIC_KEY,
       {},
     )
-
     const redeemTransaction = await this.createAndSignRawTransaction({
       signer: config.SOL_PRIVATE_KEY,
       instruction: redeemInstruction,
@@ -79,9 +99,24 @@ export class UxdWrapper {
   static async init(connection: Connection) {
     const UXD_PROGRAM_PUBLIC_KEY = new PublicKey('UXD8m9cvwk4RcSxnX2HZ9VudQCEeDH6fRnB4CAP57Dr')
 
-    const controller = new Controller('UXD', UXD_DECIMALS, UXD_PROGRAM_PUBLIC_KEY)
-    const mango = await createAndInitializeMango(connection, config.cluster as 'mainnet')
-    const depository = new MangoDepository(WSOL, 'SOL', SOL_DECIMALS, USDC, 'USDC', USDC_DECIMALS, UXD_PROGRAM_PUBLIC_KEY)
+    const controller = new Controller(
+      'UXD',
+      UXD_DECIMALS,
+      UXD_PROGRAM_PUBLIC_KEY,
+    )
+    const mango = await createAndInitializeMango(
+      connection,
+      config.cluster as 'mainnet',
+    )
+    const depository = new MangoDepository(
+      WSOL,
+      'SOL',
+      SOL_DECIMALS,
+      USDC,
+      'USDC',
+      USDC_DECIMALS,
+      UXD_PROGRAM_PUBLIC_KEY,
+    )
     const client = new UXDClient(UXD_PROGRAM_PUBLIC_KEY)
 
     return new UxdWrapper(
