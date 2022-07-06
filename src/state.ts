@@ -1,7 +1,7 @@
 import { Connection } from '@solana/web3.js'
 
 import { mint } from './constants'
-import { fetchSplBalance } from './lib/utils/account'
+import { fetchSplBalance } from './lib/utils/fetchSplBalance'
 import { ref } from './lib/utils/ref'
 import { force } from './lib/utils/force'
 import config from './app.config'

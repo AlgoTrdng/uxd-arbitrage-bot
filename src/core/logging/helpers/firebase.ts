@@ -14,7 +14,7 @@ const getFirebaseConfigPath = () => {
     throw Error('Missing ENV environment variable')
   }
 
-  const firebaseConfigFilePath = path.join(__dirname, `../../../firebase-admin-credentials.${APP_ENV}.json`)
+  const firebaseConfigFilePath = path.join(__dirname, `../../../../firebase-admin-credentials.${APP_ENV}.json`)
   return firebaseConfigFilePath
 }
 

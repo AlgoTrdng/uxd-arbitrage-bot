@@ -24,6 +24,14 @@ type SwapResultSuccess = {
   outputAmount: number
 }
 
+type FetchPriceConfig = {
+  inputUiAmount: number
+  inputMintAddress: PublicKey
+  inputDecimals: number
+  outputMintAddress: PublicKey
+  outputDecimals: number
+}
+
 export class JupiterWrapper {
   connection: Connection
   jupiter: Jupiter
@@ -75,6 +83,31 @@ export class JupiterWrapper {
       return swapResult as SwapResultSuccess
     }
     return null
+  }
+
+  async fetchPrice(fetchPriceConfig: FetchPriceConfig) {
+    const {
+      inputUiAmount,
+      inputMintAddress,
+      outputMintAddress,
+      inputDecimals,
+      outputDecimals,
+    } = fetchPriceConfig
+
+    try {
+      const bestRouteInfo = await this.fetchBestRouteInfo(
+        inputMintAddress,
+        outputMintAddress,
+        inputUiAmount * (10 ** inputDecimals),
+      )
+      const inUiAmount = bestRouteInfo.inAmount / (10 ** inputDecimals)
+      const outUiAmount = bestRouteInfo.outAmount / (10 ** outputDecimals)
+      const price = outUiAmount / inUiAmount
+      return price
+    } catch (error) {
+      console.log(error)
+      return null
+    }
   }
 
   static async init(connection: Connection) {
