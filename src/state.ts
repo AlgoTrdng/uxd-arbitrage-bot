@@ -1,7 +1,7 @@
 import { Connection } from '@solana/web3.js'
 
 import { mint } from './constants'
-import { fetchSplBalance } from './lib/account'
+import { fetchSplBalance } from './lib/utils/account'
 import { ref } from './lib/utils/ref'
 import { force } from './lib/utils/force'
 import config from './app.config'
@@ -31,7 +31,7 @@ export const state = {
       () => connection.getBalance(config.SOL_PUBLIC_KEY),
       { wait: 200 },
     )
-    state.solChainBalance = solChainBalance
+    this.solChainBalance = solChainBalance
   },
   async syncAllBalances(connection: Connection) {
     await Promise.all([

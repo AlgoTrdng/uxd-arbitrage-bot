@@ -5,35 +5,33 @@ import { getAssociatedTokenAddress, NATIVE_MINT, closeAccount } from '@solana/sp
 import config from '../../app.config'
 import { force } from '../utils/force'
 
-export class CloseWrappedSolATA {
-  private static wSolATAPublicKey: PublicKey | null = null
+let wrappedSolATAAddress: PublicKey | null = null
 
-  private static async getWrappedSolATAPublicKey() {
-    if (CloseWrappedSolATA.wSolATAPublicKey) {
-      return CloseWrappedSolATA.wSolATAPublicKey
-    }
-
-    const wrappedSoLPublicKey = await getAssociatedTokenAddress(
-      NATIVE_MINT,
-      config.SOL_PUBLIC_KEY,
-    ) as PublicKey
-    CloseWrappedSolATA.wSolATAPublicKey = wrappedSoLPublicKey
-    return CloseWrappedSolATA.wSolATAPublicKey
+const getWrappedSolATAAddress = async () => {
+  if (wrappedSolATAAddress) {
+    return wrappedSolATAAddress
   }
 
-  static async execute(connection: Connection) {
-    const wSolATAPublicKey = await CloseWrappedSolATA.getWrappedSolATAPublicKey()
-    await force(
-      () => (
-        closeAccount(
-          connection,
-          config.SOL_PRIVATE_KEY,
-          wSolATAPublicKey,
-          config.SOL_PUBLIC_KEY,
-          config.SOL_PRIVATE_KEY,
-        ) as Promise<TransactionSignature>
-      ),
-      { wait: 200 },
-    )
-  }
+  wrappedSolATAAddress = await getAssociatedTokenAddress(
+    NATIVE_MINT,
+    config.SOL_PUBLIC_KEY,
+  ) as PublicKey
+
+  return wrappedSolATAAddress
+}
+
+export const closeWrappedSolATA = async (connection: Connection) => {
+  const wSolATAPublicKey = await getWrappedSolATAAddress()
+  await force(
+    () => (
+      closeAccount(
+        connection,
+        config.SOL_PRIVATE_KEY,
+        wSolATAPublicKey,
+        config.SOL_PUBLIC_KEY,
+        config.SOL_PRIVATE_KEY,
+      ) as Promise<TransactionSignature>
+    ),
+    { wait: 200 },
+  )
 }

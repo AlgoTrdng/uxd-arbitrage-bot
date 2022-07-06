@@ -1,19 +1,23 @@
 import {
   Client,
-  ColorResolvable,
   EmbedField,
   Intents,
   MessageEmbed,
   TextChannel,
 } from 'discord.js'
 
-import config from '../../app.config'
-import { AppStatuses } from '../../state'
+import config from '../../../app.config'
+import { AppStatuses } from '../../../state'
 
-export type EmbedConfig = {
-  description?: string
-  color?: ColorResolvable
-  fields?: EmbedField[]
+export type ArbitrageMessageConfig = {
+  oldAmount: number
+  newAmount: number
+  profitPercentage: number
+}
+
+export type ReBalanceMessageConfig = {
+  oldAmount: number
+  newAmount: number
 }
 
 export class DiscordWrapper {
@@ -54,53 +58,59 @@ export class DiscordWrapper {
     }
   }
 
-  async sendEmbed(embedConfig: EmbedConfig) {
-    const { description, color, fields } = embedConfig
+  async sendArbitrageMessage(arbitrageConfig: ArbitrageMessageConfig) {
+    const { oldAmount, newAmount, profitPercentage } = arbitrageConfig
+
+    const fields: EmbedField[] = [
+      {
+        name: 'Old amount',
+        value: `UXD ${oldAmount}`,
+        inline: true,
+      },
+      {
+        name: 'New amount',
+        value: `UXD ${newAmount}`,
+        inline: true,
+      },
+      {
+        name: 'Profit',
+        value: `${profitPercentage}%`,
+        inline: true,
+      },
+    ]
+    const clr = profitPercentage > 0 ? '#78EA4A' : '#EB5757'
+
     const embed = new MessageEmbed({
-      description,
+      description: 'Executed **REDEEM** arbitrage',
       fields,
     })
-
-    if (color) {
-      embed.setColor(color)
-    }
+    embed.setColor(clr)
 
     await this.channel.send({ embeds: [embed] })
   }
-}
 
-type DiscordMessageData = {
-  oldAmount: number
-  newAmount: number
-  wasSuccessful: boolean
-  profitPercentage: number
-}
+  async sendReBalanceMessage(reBalanceConfig: ReBalanceMessageConfig) {
+    const { oldAmount, newAmount } = reBalanceConfig
 
-export const createDiscordMessageData = (messageData: DiscordMessageData): EmbedConfig => {
-  const {
-    oldAmount, newAmount, wasSuccessful, profitPercentage,
-  } = messageData
+    const embedFields: EmbedField[] = [
+      {
+        name: 'Old amount',
+        value: `UXD ${oldAmount}`,
+        inline: true,
+      },
+      {
+        name: 'New amount',
+        value: `UXD ${newAmount}`,
+        inline: true,
+      },
+    ]
 
-  const fields: EmbedField[] = [
-    {
-      name: 'Old amount',
-      value: `UXD ${oldAmount}`,
-      inline: true,
-    },
-    {
-      name: 'New amount',
-      value: `UXD ${newAmount}`,
-      inline: true,
-    },
-    {
-      name: 'Profit',
-      value: `${profitPercentage}%`,
-      inline: true,
-    },
-  ]
-  return {
-    description: `Executed ${wasSuccessful ? 'successful' : 'unsuccessful'} **REDEEM** arbitrage`,
-    color: profitPercentage > 0 ? '#78EA4A' : '#EB5757',
-    fields,
+    const embed = new MessageEmbed({
+      description: 'Successfully swapped UXD to USDC',
+      fields: embedFields,
+    })
+    embed.setColor('#FFAA2B')
+
+    await this.channel.send({ embeds: [embed] })
   }
 }

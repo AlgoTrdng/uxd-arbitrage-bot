@@ -5,11 +5,7 @@ import { getFirestore } from 'firebase-admin/firestore'
 import { credential } from 'firebase-admin'
 import path from 'path'
 
-import config from '../../app.config'
-
-export const Collections = {
-  trades: config.TRADES_COLLECTION,
-}
+import appConfig from '../../../app.config'
 
 const getFirebaseConfigPath = () => {
   const { APP_ENV } = process.env
@@ -24,7 +20,7 @@ const getFirebaseConfigPath = () => {
 
 const app = initializeApp({
   credential: credential.cert(getFirebaseConfigPath()),
-  databaseURL: `https://${config.FIREBASE_PROJECT_ID}.europe-west1.firebasedatabase.app`,
+  databaseURL: `https://${appConfig.FIREBASE_PROJECT_ID}.europe-west1.firebasedatabase.app`,
 })
 const database = getFirestore(app)
 
@@ -33,27 +29,28 @@ export const saveDocument = async (collectionName: string, id: string, document:
   await docRef.set(document)
 }
 
-type FirebaseDocumentData = {
-  oldAmount: number
-  newAmount: number
-  profit: number
-  type: 'redeem'
-  wasSuccessful: boolean
-  executedAt: Date
+type SaveToFirebaseConfig = {
+  preArbitrageUiBalance: number
+  postArbitrageUiBalance: number
+  profitBps: number
 }
 
-export const createFirebaseDocumentData = (
-  preArbitrageUiBalance: number,
-  postArbitrageUiBalance: number,
-  success: boolean,
-): FirebaseDocumentData => {
-  const profitBps = postArbitrageUiBalance / preArbitrageUiBalance - 1
-  return {
+export const saveToFirebase = async (config: SaveToFirebaseConfig) => {
+  const { postArbitrageUiBalance, preArbitrageUiBalance, profitBps } = config
+
+  const executedAt = new Date()
+  const firebaseDocumentData = {
     oldAmount: preArbitrageUiBalance,
     newAmount: postArbitrageUiBalance,
-    wasSuccessful: success,
+    wasSuccessful: true,
     profit: Number(profitBps.toFixed(4)),
     type: 'redeem',
-    executedAt: new Date(),
+    executedAt,
   }
+
+  await saveDocument(
+    appConfig.TRADES_COLLECTION,
+    executedAt.getTime().toString(),
+    firebaseDocumentData,
+  )
 }

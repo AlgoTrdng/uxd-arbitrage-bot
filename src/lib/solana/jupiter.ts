@@ -1,9 +1,7 @@
 import { Jupiter, RouteInfo } from '@jup-ag/core'
 import { Connection, PublicKey } from '@solana/web3.js'
-import { SOL_DECIMALS, UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 
 import config from '../../app.config'
-import { mint } from '../../constants'
 import { force } from '../utils/force'
 
 const { SOL_PRIVATE_KEY, cluster } = config
@@ -36,14 +34,14 @@ export class JupiterWrapper {
   }
 
   async fetchRouteInfoAndSwap(swapConfig: SwapConfig) {
-    const _slippage = swapConfig.slippagePercentage || 0.5
+    const slippage = swapConfig.slippagePercentage || 0.5
     const { inputMint, outputMint, swapChainAmount } = swapConfig
 
     const routeInfo = await this.fetchBestRouteInfo(
       inputMint,
       outputMint,
       swapChainAmount,
-      _slippage,
+      slippage,
     )
     const swapResult = await force(
       () => this.swap(routeInfo),

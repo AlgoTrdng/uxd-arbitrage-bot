@@ -1,6 +1,6 @@
 import { Connection } from '@solana/web3.js'
 
-import { Wrappers } from '../../lib/wrappers'
+import { Wrappers } from '../../lib/solana'
 import { executeRedemption, executeSwap } from './utils'
 import { AppStatuses, state } from '../../state'
 import { getPriceDifference } from '../../lib/utils/getPriceDifference'

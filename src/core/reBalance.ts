@@ -3,7 +3,7 @@ import { Connection } from '@solana/web3.js'
 
 import { getChainAmount, getUiAmount } from '../lib/utils/amount'
 import { AppStatuses, state } from '../state'
-import { JupiterWrapper } from '../lib/wrappers'
+import { JupiterWrapper } from '../lib/solana'
 import { mint } from '../constants'
 import { wait } from '../lib/utils/wait'
 import { emitEvent } from '../lib/utils/eventEmitter'

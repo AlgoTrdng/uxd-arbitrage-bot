@@ -1,11 +1,11 @@
 import { Connection } from '@solana/web3.js'
 
-import { startArbitrageLoop } from './bot/arbitrage'
-import { initWrappers } from './lib/wrappers'
-import { initStatsLogging } from './bot/logging'
+import { startArbitrageLoop } from './core/arbitrage'
+import { initWrappers } from './lib/solana'
+import { initLogging } from './core/logging'
 import { state } from './state'
 import config from './app.config'
-import { watchStatusAndReBalance } from './bot/reBalance'
+import { watchStatusAndReBalance } from './core/reBalance'
 
 (async () => {
   const connection = new Connection(config.SOL_RPC_ENDPOINT, 'confirmed')
@@ -13,7 +13,8 @@ import { watchStatusAndReBalance } from './bot/reBalance'
 
   await state.syncAllBalances(connection)
 
-  await initStatsLogging()
+  await initLogging()
   watchStatusAndReBalance(connection, wrappers.jupiterWrapper)
+
   await startArbitrageLoop(connection, 10_000, wrappers)
 })()

@@ -6,11 +6,11 @@ import { sendAndConfirmRedeem, SendRedeemTxError } from '../../lib/actions/redee
 import { getUiAmount } from '../../lib/utils/amount'
 import { getPriceDifference } from '../../lib/utils/getPriceDifference'
 import { wait } from '../../lib/utils/wait'
-import { UxdWrapper, MangoWrapper, JupiterWrapper } from '../../lib/wrappers'
+import { UxdWrapper, MangoWrapper, JupiterWrapper } from '../../lib/solana'
 import { state } from '../../state'
 import { force } from '../../lib/utils/force'
-import { fetchSplBalance } from '../../lib/account'
-import { CloseWrappedSolATA } from '../../lib/actions/closeWrappedSolATA'
+import { fetchSplBalance } from '../../lib/utils/account'
+import { closeWrappedSolATA } from '../../lib/actions/closeWrappedSolATA'
 import config from '../../app.config'
 
 export const executeRedemption = async (
@@ -76,7 +76,7 @@ export const executeSwap = async (connection: Connection, jupiterWrapper: Jupite
     )
     if (wSolChainBalance) {
       console.log('Closing wrapped SOL ATA')
-      await CloseWrappedSolATA.execute(connection)
+      await closeWrappedSolATA(connection)
     }
 
     await wait()

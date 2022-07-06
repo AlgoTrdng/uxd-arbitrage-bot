@@ -1,10 +1,10 @@
 {
   "name": "uxd-arb-bot",
-  "version": "0.0.5",
+  "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "build:watch": "rm -rf dist && tsc -w",
+    "build:w": "rm -rf dist && tsc -w",
     "start:dev": "APP_ENV=dev node dist/index.js",
     "start:prod": "APP_ENV=prod node dist/index.js",
     "pm2:dev": "APP_ENV=dev pm2 start pm2.config.js",

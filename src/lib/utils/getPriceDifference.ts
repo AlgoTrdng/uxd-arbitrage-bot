@@ -2,7 +2,7 @@ import { UXD_DECIMALS, SOL_DECIMALS } from '@uxd-protocol/uxd-client'
 import { mint } from '../../constants'
 
 import { getUiAmount } from './amount'
-import { MangoWrapper, JupiterWrapper } from '../wrappers'
+import { MangoWrapper, JupiterWrapper } from '../solana'
 
 const getSolVsUxdJupiterPrice = async (jupiterWrapper: JupiterWrapper, solUiAmount: number) => {
   try {

@@ -1,26 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js'
 
-import config from '../app.config'
-import { wait } from './utils/wait'
-
-type Balance = number | null
-
-/**
- * @returns Chain amount of SOL
- */
-export const fetchLamportsBalance = async (connection: Connection) => {
-  let lamports: Balance = null
-
-  while (lamports === null) {
-    try {
-      lamports = await connection.getBalance(config.SOL_PUBLIC_KEY)
-    } catch (error) {
-      await wait()
-    }
-  }
-
-  return lamports
-}
+import config from '../../app.config'
 
 /**
  * @returns Chain balance of provided SPL token

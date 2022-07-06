@@ -1,8 +1,8 @@
 {
-  "minimumPriceDiff": -1,
+  "minimumPriceDiff": 0.2,
   "cluster": "mainnet",
   "log": true,
 
   "defaultUxdUiBalance": 25,
-  "maximumUxdUiBalance": 45
+  "maximumUxdUiBalance": 47
 }
