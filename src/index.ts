@@ -4,8 +4,8 @@ import { startArbitrageLoop } from './core/arbitrage'
 import { initWrappers } from './lib/solana'
 import { initLogging } from './core/logging'
 import { state } from './state'
-import config from './app.config'
 import { watchStatusAndReBalance } from './core/reBalance'
+import config from './app.config'
 
 (async () => {
   const connection = new Connection(config.SOL_RPC_ENDPOINT, 'confirmed')

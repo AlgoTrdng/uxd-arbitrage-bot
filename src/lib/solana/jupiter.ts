@@ -63,6 +63,7 @@ export class JupiterWrapper {
    */
   async fetchBestRouteInfo(inputMint: PublicKey, outputMint: PublicKey, inputChainAmount: number, slippage = 0.5) {
     const routes = await this.jupiter!.computeRoutes({
+      forceFetch: true,
       slippage,
       inputAmount: inputChainAmount,
       inputMint,
