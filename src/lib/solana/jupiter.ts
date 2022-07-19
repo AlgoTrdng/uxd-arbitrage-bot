@@ -2,7 +2,6 @@ import { Jupiter, RouteInfo } from '@jup-ag/core'
 import { Connection, PublicKey } from '@solana/web3.js'
 
 import config from '../../app.config'
-import { force } from '../utils/force'
 
 const { SOL_PRIVATE_KEY, cluster } = config
 
@@ -32,6 +31,14 @@ type FetchPriceConfig = {
   outputDecimals: number
 }
 
+type FetchBestRouteInfoParams = {
+  inputMint: PublicKey
+  outputMint: PublicKey
+  inputChainAmount: number
+  slippage?: number
+  forceFetch?: boolean
+}
+
 export class JupiterWrapper {
   connection: Connection
   jupiter: Jupiter
@@ -41,31 +48,45 @@ export class JupiterWrapper {
     this.jupiter = jupiter
   }
 
-  async fetchRouteInfoAndSwap(swapConfig: SwapConfig) {
-    const slippage = swapConfig.slippagePercentage || 0.5
-    const { inputMint, outputMint, swapChainAmount } = swapConfig
+  async fetchRouteInfoAndSwap({
+    inputMint,
+    outputMint,
+    swapChainAmount,
+    slippagePercentage,
+  }: SwapConfig) {
+    const slippage = slippagePercentage || 0.5
 
-    const routeInfo = await this.fetchBestRouteInfo(
+    const routeInfo = await this.fetchBestRouteInfo({
+      inputChainAmount: swapChainAmount,
+      forceFetch: true,
       inputMint,
       outputMint,
-      swapChainAmount,
       slippage,
-    )
-    const swapResult = await force(
-      () => this.swap(routeInfo),
-      { wait: 200 },
-    )
+    })
+    const swapResult = await this.swap(routeInfo)
     return swapResult
   }
 
   /**
    * @param inputChainAmount Chain amount of input token
    */
-  async fetchBestRouteInfo(inputMint: PublicKey, outputMint: PublicKey, inputChainAmount: number, slippage = 0.5) {
-    const routes = await this.jupiter!.computeRoutes({
-      forceFetch: true,
-      slippage,
+  async fetchBestRouteInfo({
+    inputChainAmount,
+    inputMint,
+    outputMint,
+    slippage,
+    forceFetch,
+  }: FetchBestRouteInfoParams) {
+    if (!this.jupiter) {
+      throw Error('Jupiter is not defined')
+    }
+
+    const _slippage = slippage || 0.5
+
+    const routes = await this.jupiter.computeRoutes({
+      slippage: _slippage,
       inputAmount: inputChainAmount,
+      forceFetch,
       inputMint,
       outputMint,
     })
@@ -86,25 +107,23 @@ export class JupiterWrapper {
     return null
   }
 
-  async fetchPrice(fetchPriceConfig: FetchPriceConfig) {
-    const {
-      inputUiAmount,
-      inputMintAddress,
-      outputMintAddress,
-      inputDecimals,
-      outputDecimals,
-    } = fetchPriceConfig
-
+  /**
+   * @returns Swap output ui amount
+   */
+  async fetchOutput({
+    inputUiAmount,
+    inputMintAddress,
+    outputMintAddress,
+    inputDecimals,
+    outputDecimals,
+  }: FetchPriceConfig) {
     try {
-      const bestRouteInfo = await this.fetchBestRouteInfo(
-        inputMintAddress,
-        outputMintAddress,
-        inputUiAmount * (10 ** inputDecimals),
-      )
-      const inUiAmount = bestRouteInfo.inAmount / (10 ** inputDecimals)
-      const outUiAmount = bestRouteInfo.outAmount / (10 ** outputDecimals)
-      const price = outUiAmount / inUiAmount
-      return price
+      const { outAmount } = await this.fetchBestRouteInfo({
+        inputMint: inputMintAddress,
+        outputMint: outputMintAddress,
+        inputChainAmount: inputUiAmount * (10 ** inputDecimals),
+      })
+      return outAmount / (10 ** outputDecimals)
     } catch (error) {
       console.log(error)
       return null
@@ -115,6 +134,7 @@ export class JupiterWrapper {
     const jupiter = await Jupiter.load({
       cluster: `${cluster}-beta` as 'mainnet-beta',
       user: SOL_PRIVATE_KEY,
+      routeCacheDuration: 10_000,
       connection,
     })
 

@@ -1,12 +1,15 @@
-// @ts-ignore
-import { createAssociatedTokenAccount, getAssociatedTokenAddress } from '@solana/spl-token'
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createSyncNativeInstruction,
+} from '@solana/spl-token'
 import {
   Connection,
   Transaction,
   TransactionInstruction,
   Keypair,
-  TransactionBlockhashCtor,
   PublicKey,
+  SystemProgram,
 } from '@solana/web3.js'
 import {
   Controller,
@@ -24,11 +27,12 @@ import {
 } from '@uxd-protocol/uxd-client'
 
 import config from '../../app.config'
-import { force } from '../utils/force'
+import { getChainAmount } from '../utils/amount'
+import { forceOnError } from '../utils/force'
 
 type CreateTransactionConfig = {
   signer: Keypair
-  instruction: TransactionInstruction
+  instructions: TransactionInstruction[]
 }
 
 export class UxdWrapper {
@@ -40,45 +44,49 @@ export class UxdWrapper {
     private connection: Connection,
   ) {}
 
-  private async createCollateralATA() {
-    const collateralATAPublicKey = await getAssociatedTokenAddress(
+  private async getCreateCollateralATAInstruction(): Promise<[TransactionInstruction | null, PublicKey]> {
+    const collateralATA = await getAssociatedTokenAddress(
       this.depository.collateralMint,
       config.SOL_PUBLIC_KEY,
-    ) as PublicKey
-    const collateralATAInfo = await this.connection.getAccountInfo(collateralATAPublicKey)
+    )
+    const collateralATAInfo = await this.connection.getAccountInfo(collateralATA)
 
     if (!collateralATAInfo?.lamports) {
-      await createAssociatedTokenAccount(
-        this.connection,
-        config.SOL_PRIVATE_KEY,
-        this.depository.collateralMint,
+      const ix = createAssociatedTokenAccountInstruction(
         config.SOL_PUBLIC_KEY,
+        collateralATA,
+        config.SOL_PUBLIC_KEY,
+        this.depository.collateralMint,
       )
+      return [ix, collateralATA]
     }
+
+    return [null, collateralATA]
   }
 
-  private async createAndSignRawTransaction({ signer, instruction }: CreateTransactionConfig) {
+  private async createAndSignRawTransaction({ signer, instructions }: CreateTransactionConfig) {
     const {
       blockhash,
       lastValidBlockHeight,
-    } = await force(
-      () => this.connection.getLatestBlockhash('confirmed'),
-      { wait: 200 },
-    )
+    } = await forceOnError(() => this.connection.getLatestBlockhash('confirmed'))
 
-    const transactionConfig: TransactionBlockhashCtor = {
+    const transaction = new Transaction({
       blockhash,
       lastValidBlockHeight,
-    }
-    const transaction = new Transaction(transactionConfig)
+    })
 
-    transaction.add(instruction)
+    transaction.add(...instructions)
     transaction.sign(signer)
     return transaction
   }
 
   async createRedeemRawTransaction(uxdUiBalance: number) {
-    await this.createCollateralATA()
+    const instructions: TransactionInstruction[] = []
+
+    const [createATAInstruction] = await this.getCreateCollateralATAInstruction()
+    if (createATAInstruction) {
+      instructions.push(createATAInstruction)
+    }
 
     const redeemInstruction = await this.client.createRedeemFromMangoDepositoryInstruction(
       uxdUiBalance - 1,
@@ -89,11 +97,50 @@ export class UxdWrapper {
       config.SOL_PUBLIC_KEY,
       {},
     )
+    instructions.push(redeemInstruction)
+
     const redeemTransaction = await this.createAndSignRawTransaction({
       signer: config.SOL_PRIVATE_KEY,
-      instruction: redeemInstruction,
+      instructions,
     })
     return redeemTransaction
+  }
+
+  async createMintRawTransaction(solUiBalance: number) {
+    const instructions: TransactionInstruction[] = []
+
+    const [createATAInstruction, ata] = await this.getCreateCollateralATAInstruction()
+    if (createATAInstruction) {
+      instructions.push(createATAInstruction)
+    }
+
+    const transferSolInstruction = SystemProgram.transfer({
+      fromPubkey: config.SOL_PUBLIC_KEY,
+      toPubkey: ata,
+      lamports: getChainAmount(solUiBalance, SOL_DECIMALS),
+    })
+    const syncNativeInstruction = createSyncNativeInstruction(ata)
+    instructions.push(
+      transferSolInstruction,
+      syncNativeInstruction,
+    )
+
+    const mintInstruction = await this.client.createMintWithMangoDepositoryInstruction(
+      solUiBalance,
+      5,
+      this.controller,
+      this.depository,
+      this.mango,
+      config.SOL_PUBLIC_KEY,
+      {},
+    )
+    instructions.push(mintInstruction)
+
+    const mintTransaction = await this.createAndSignRawTransaction({
+      signer: config.SOL_PRIVATE_KEY,
+      instructions,
+    })
+    return mintTransaction
   }
 
   static async init(connection: Connection) {
@@ -128,3 +175,9 @@ export class UxdWrapper {
     )
   }
 }
+
+(async () => {
+  const connection = new Connection(config.SOL_RPC_ENDPOINT)
+  const uxdClient = await UxdWrapper.init(connection)
+  const tx = await uxdClient.createMintRawTransaction(0.4895123)
+})()

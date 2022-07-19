@@ -7,12 +7,13 @@ import {
 } from 'discord.js'
 
 import config from '../../../app.config'
-import { AppStatuses } from '../../../state'
+import { AppStatus, AppStatuses, ArbitrageType } from '../../../state'
 
 export type ArbitrageMessageConfig = {
   oldAmount: number
   newAmount: number
   profitPercentage: number
+  type: ArbitrageType
 }
 
 export type ReBalanceMessageConfig = {
@@ -39,28 +40,29 @@ export class DiscordWrapper {
     return new DiscordWrapper(client, channel)
   }
 
-  setActivity(activity: typeof AppStatuses[keyof typeof AppStatuses]) {
+  setActivity(activity: AppStatus) {
     switch (activity) {
       case AppStatuses.SCANNING:
         this.client.user?.setActivity('markets', { type: 'WATCHING' })
         break
-      case AppStatuses.SWAPPING:
-        this.client.user?.setActivity('swapping SOL for UXD', { type: 'PLAYING' })
-        break
+      case AppStatuses.MINTING:
       case AppStatuses.REDEEMING:
-        this.client.user?.setActivity('redeeming UXD for SOL', { type: 'PLAYING' })
+        this.client.user?.setActivity('arbitrage', { type: 'PLAYING' })
         break
       case AppStatuses.RE_BALANCING:
         this.client.user?.setActivity('re-balancing', { type: 'PLAYING' })
         break
       default:
-        console.error('Invalid activity', activity)
+        throw new Error(`Invalid activity: ${activity}`)
     }
   }
 
-  async sendArbitrageMessage(arbitrageConfig: ArbitrageMessageConfig) {
-    const { oldAmount, newAmount, profitPercentage } = arbitrageConfig
-
+  async sendArbitrageMessage({
+    oldAmount,
+    newAmount,
+    profitPercentage,
+    type,
+  }: ArbitrageMessageConfig) {
     const fields: EmbedField[] = [
       {
         name: 'Old amount',
@@ -81,7 +83,7 @@ export class DiscordWrapper {
     const clr = profitPercentage > 0 ? '#78EA4A' : '#EB5757'
 
     const embed = new MessageEmbed({
-      description: 'Executed **REDEEM** arbitrage',
+      description: `Executed **${type}** arbitrage`,
       fields,
     })
     embed.setColor(clr)

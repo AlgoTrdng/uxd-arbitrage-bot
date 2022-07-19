@@ -3,35 +3,38 @@ import { Connection } from '@solana/web3.js'
 import { mint } from './constants'
 import { fetchSplBalance } from './lib/utils/fetchSplBalance'
 import { ref } from './lib/utils/ref'
-import { force } from './lib/utils/force'
+import { forceOnError } from './lib/utils/force'
 import config from './app.config'
 
 export const AppStatuses = {
-  SCANNING: 'SCANNING',
-  REDEEMING: 'REDEEMING',
-  SWAPPING: 'SWAPPING',
-  RE_BALANCING: 'RE_BALANCING',
+  SCANNING: 'scanning',
+  MINTING: 'minting',
+  REDEEMING: 'redeeming',
+  RE_BALANCING: 're-balancing',
 } as const
+
+type AppStatusesType = typeof AppStatuses
+
+export type AppStatus = AppStatusesType[keyof AppStatusesType]
+export type ArbitrageType = AppStatusesType['MINTING'] | AppStatusesType['REDEEMING']
 
 export const state = {
   uxdChainBalance: 0,
   solChainBalance: 0,
 
-  appStatus: ref<keyof typeof AppStatuses>('SCANNING'),
+  appStatus: ref<AppStatus>('scanning'),
 
   async syncUxdBalance(connection: Connection) {
-    const uxdBalance = await force(
+    this.uxdChainBalance = await forceOnError(
       () => fetchSplBalance(connection, mint.UXD),
-      { wait: 200 },
+      500,
     )
-    this.uxdChainBalance = uxdBalance
   },
   async syncSolBalance(connection: Connection) {
-    const solChainBalance = await force(
+    this.solChainBalance = await forceOnError(
       () => connection.getBalance(config.SOL_PUBLIC_KEY),
-      { wait: 200 },
+      500,
     )
-    this.solChainBalance = solChainBalance
   },
   async syncAllBalances(connection: Connection) {
     await Promise.all([

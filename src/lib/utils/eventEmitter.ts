@@ -1,8 +1,14 @@
 import EventEmitter from 'events'
+import { ArbitrageType } from '../../state'
+
+type ArbitrageStartPayload = {
+  uxdChainBalance: number
+  type: ArbitrageType
+}
 
 type Events = {
   'arbitrage-success': (uxdChainBalance: number) => void
-  'arbitrage-start': (uxdChainBalance: number) => void
+  'arbitrage-start': (payload: ArbitrageStartPayload) => void
 
   're-balance-success': (config: { preUxdChainBalance: number, postUxdChainBalance: number }) => void
 }

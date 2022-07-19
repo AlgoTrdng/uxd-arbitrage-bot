@@ -10,8 +10,8 @@ import { emitEvent } from '../lib/utils/eventEmitter'
 import config from '../app.config'
 
 export const watchStatusAndReBalance = (connection: Connection, jupiterWrapper: JupiterWrapper) => {
-  state.appStatus.watch(async (currentStatus, prevStatus) => {
-    if (currentStatus !== AppStatuses.SCANNING && prevStatus !== AppStatuses.SWAPPING) {
+  state.appStatus.watch(async (currentStatus) => {
+    if (currentStatus !== AppStatuses.SCANNING) {
       return
     }
 

@@ -3,7 +3,7 @@ import { UXD_DECIMALS } from '@uxd-protocol/uxd-client'
 import { listenForEvent } from '../../lib/utils/eventEmitter'
 import { DiscordWrapper } from './helpers/discord'
 import { saveToFirebase } from './helpers/firebase'
-import { AppStatuses, state } from '../../state'
+import { AppStatuses, ArbitrageType, state } from '../../state'
 
 const getMessageAmount = (amount: number, decimals: number) => (
   Number(
@@ -19,14 +19,19 @@ export const initLogging = async () => {
   // LISTEN FOR ARB EXECUTION
   (() => {
     let preArbitrageUxdBalance: number | null = null
+    let arbType: ArbitrageType | null = null
 
-    listenForEvent('arbitrage-start', (uxdChainBalance) => {
+    listenForEvent('arbitrage-start', ({
+      uxdChainBalance,
+      type,
+    }) => {
+      arbType = type
       preArbitrageUxdBalance = getMessageAmount(uxdChainBalance, UXD_DECIMALS)
     })
 
     listenForEvent('arbitrage-success', async (uxdChainBalance) => {
-      if (!preArbitrageUxdBalance) {
-        console.log('Pre arbitrage balance was not defined')
+      if (!preArbitrageUxdBalance || !arbType) {
+        console.error('Pre arbitrage balance and arb type was not defined')
         return
       }
 
@@ -38,24 +43,25 @@ export const initLogging = async () => {
         discordWrapper.sendArbitrageMessage({
           oldAmount: preArbitrageUxdBalance,
           newAmount: postArbitrageUxdBalance,
+          type: arbType,
           profitPercentage,
         }),
         saveToFirebase({
           preArbitrageUiBalance: preArbitrageUxdBalance,
           postArbitrageUiBalance: postArbitrageUxdBalance,
+          type: arbType,
           profitBps,
         }),
       ])
 
-      console.log(
-        `Executed arbitrage; profit: ${profitPercentage}, oldAmount: ${
-          preArbitrageUxdBalance
-        }, newAmount: ${
-          postArbitrageUxdBalance
-        }`,
-      )
+      console.log(`Executed ${arbType} arbitrage:`, {
+        profit: `${profitPercentage}%`,
+        preArbitrageUxdBalance,
+        postArbitrageUxdBalance,
+      })
 
       preArbitrageUxdBalance = null
+      arbType = null
     })
   })()
 

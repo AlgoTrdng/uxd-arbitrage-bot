@@ -98,16 +98,23 @@ const watchTxConfirmation = async (
   return SendRedeemTxError.TIMEOUT
 }
 
-export type RedeemResponse =
+type TxConfirmationResponse =
   | typeof SendRedeemTxError[keyof typeof SendRedeemTxError]
-  | ReturnType<typeof getTransactionData>
+  | ConfirmedTransactionMeta
 
-export const sendAndConfirmRedeem = async (connection: Connection, transaction: Transaction) => {
+export type SuccessResponse = ReturnType<typeof getTransactionData>
+
+export type SendTxResponse = SuccessResponse | null
+
+export const sendAndConfirmTransaction = async (
+  connection: Connection,
+  transaction: Transaction,
+): Promise<SendTxResponse> => {
   const serializedTransaction = transaction.serialize()
   const txId = await connection.sendRawTransaction(serializedTransaction, sendOptions)
   const startTime = getTs()
 
-  const response = await Promise.any([
+  const response: TxConfirmationResponse = await Promise.any([
     watchBlockHeight(connection, transaction, startTime),
     watchTxConfirmation(connection, txId, startTime),
   ])
@@ -117,5 +124,5 @@ export const sendAndConfirmRedeem = async (connection: Connection, transaction: 
     return postBalances
   }
 
-  return response
+  return null
 }

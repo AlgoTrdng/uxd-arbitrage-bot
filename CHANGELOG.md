@@ -3,6 +3,14 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [1.1.0] - 19.7.2022
+
+- Code refactoring
+
+### Added
+
+- `Mint` arbitrage
+
 ## [1.0.2] - 7.6.2022
 
 ### Updated

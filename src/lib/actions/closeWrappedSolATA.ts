@@ -3,7 +3,7 @@ import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js'
 import { getAssociatedTokenAddress, NATIVE_MINT, closeAccount } from '@solana/spl-token'
 
 import config from '../../app.config'
-import { force } from '../utils/force'
+import { forceOnError } from '../utils/force'
 
 let wrappedSolATAAddress: PublicKey | null = null
 
@@ -22,7 +22,7 @@ const getWrappedSolATAAddress = async () => {
 
 export const closeWrappedSolATA = async (connection: Connection) => {
   const wSolATAPublicKey = await getWrappedSolATAAddress()
-  await force(
+  await forceOnError(
     () => (
       closeAccount(
         connection,
@@ -32,6 +32,5 @@ export const closeWrappedSolATA = async (connection: Connection) => {
         config.SOL_PRIVATE_KEY,
       ) as Promise<TransactionSignature>
     ),
-    { wait: 200 },
   )
 }

@@ -8,34 +8,30 @@ import {
   PerpMarket,
 } from '@blockworks-foundation/mango-client'
 import { PublicKey, Connection } from '@solana/web3.js'
-import { SOL_DECIMALS } from '@uxd-protocol/uxd-client'
 
 const MANGO_GROUP = 'mainnet.1'
 const MANGO_RPC = 'https://mango.rpcpool.com/946ef7337da3f5b8d3e4a34e7f88'
 
-type PerpMarketConfig = {
-  publicKey: PublicKey
-  perpMarket: PerpMarket
-}
-
 /**
  * @description [price, bid size (SOL)]
  */
-type Asks = [number, number][]
+type Orderbook = [number, number][]
 
-/**
- * @description Fill price and UI amount
- */
-type Fills = { price: number; amount: number }[]
+type OrderbookKeys = {
+  asks: PublicKey
+  bids: PublicKey
+}
 
 export class MangoWrapper {
-  connection: Connection
-  perpMarketConfig: PerpMarketConfig
-  asks: Asks = []
+  asks: Orderbook = []
+  bids: Orderbook = []
 
-  constructor(connection: Connection, perpMarketConfig: PerpMarketConfig) {
-    this.connection = connection
-    this.perpMarketConfig = perpMarketConfig
+  constructor(
+    private connection: Connection,
+    private perpMarket: PerpMarket,
+    private orderbookKeys: OrderbookKeys,
+  ) {
+    this.watchOrderbook()
   }
 
   static async init() {
@@ -53,81 +49,23 @@ export class MangoWrapper {
       perpMarketConfig.quoteDecimals,
     )
 
-    return new MangoWrapper(connection, {
-      publicKey: perpMarketConfig.asksKey,
+    return new MangoWrapper(
+      connection,
       perpMarket,
+      { asks: perpMarket.asks, bids: perpMarket.bids },
+    )
+  }
+
+  watchOrderbook() {
+    const { asks, bids } = this.orderbookKeys
+
+    this.connection.onAccountChange(asks, (accountInfo) => {
+      const _asks = new BookSide(asks, this.perpMarket, BookSideLayout.decode(accountInfo.data))
+      this.asks = _asks.getL2Ui(5)
     })
-  }
-
-  watchSolPerpAsks() {
-    const { publicKey, perpMarket } = this.perpMarketConfig
-    this.connection.onAccountChange(publicKey, (accountInfo) => {
-      const asks = new BookSide(publicKey, perpMarket, BookSideLayout.decode(accountInfo.data))
-      this.asks = asks.getL2Ui(5)
+    this.connection.onAccountChange(bids, (accountInfo) => {
+      const _bids = new BookSide(bids, this.perpMarket, BookSideLayout.decode(accountInfo.data))
+      this.bids = _bids.getL2Ui(5)
     })
-  }
-
-  private static getPossibleFills(uxdBalanceUi: number, asks: Asks) {
-    let residualBalance = uxdBalanceUi
-    const buys: Fills = []
-
-    for (let i = 0; i < asks.length; i += 1) {
-      const [price, amount] = asks[i]
-      const solAmount = residualBalance / price
-
-      // if solAmount is more than amount, max possible amount is ASK amount
-      const totalCost = solAmount > amount
-        ? price * amount
-        : solAmount * price
-
-      if (totalCost > residualBalance) {
-        buys.push({
-          amount: solAmount,
-          price,
-        })
-        break
-      }
-
-      residualBalance -= totalCost
-
-      const _amount = totalCost / price
-      buys.push({
-        amount: _amount,
-        price,
-      })
-    }
-
-    return buys
-  }
-
-  /**
-   * @returns [AveragePrice, UiAmount]
-   */
-  private static getFillDetails(buys: Fills): [number, number] {
-    const total = buys
-      .reduce(
-        (_totalCost, { price, amount }) => ({
-          cost: _totalCost.cost + price * amount,
-          amount: _totalCost.amount + amount,
-        }),
-        {
-          cost: 0,
-          amount: 0,
-        },
-      )
-
-    return [
-      total.cost / total.amount,
-      Number(total.amount.toFixed(SOL_DECIMALS)),
-    ]
-  }
-
-  /**
-   * @returns [AveragePrice, UiAmount]
-   */
-  static getSolPerpPrice(uxdBalanceUi: number, asks: Asks) {
-    const fills = MangoWrapper.getPossibleFills(uxdBalanceUi, asks)
-    const fillDetails = MangoWrapper.getFillDetails(fills)
-    return fillDetails
   }
 }

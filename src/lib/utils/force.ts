@@ -1,35 +1,21 @@
 import { wait } from './wait'
 
-type OnErrorConfig<T> = {
-  cb?: () => Promise<T>
-  wait?: number
-}
-
-/**
- * Retry throwable function until it successfully returns.
- * If `wait` is provided, will wait on Error provided amount of ms, before retrying
- */
-export const force = async <SuccessData>
-(
-  cb: () => Promise<SuccessData>,
-  onErrorConfig?: OnErrorConfig<SuccessData>,
+export const forceOnError = async <Data>(
+  cb: () => Promise<Data>,
+  waitTime = 200,
 ) => {
-  try {
-    const res = await cb.call(null)
-    return res
-  } catch (error) {
-    let res: any
+  let err = false
+  let res: Data | null = null
 
-    if (onErrorConfig?.wait) {
-      await wait(onErrorConfig.wait)
+  do {
+    try {
+      err = false
+      res = await cb()
+    } catch (error) {
+      err = true
+      await wait(waitTime)
     }
+  } while (err)
 
-    if (onErrorConfig?.cb) {
-      res = await onErrorConfig.cb.call(null)
-      return res as Awaited<SuccessData>
-    }
-
-    res = await cb.call(null)
-    return res as Awaited<SuccessData>
-  }
+  return res as Data
 }
