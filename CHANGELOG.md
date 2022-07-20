@@ -3,6 +3,15 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [1.1.3] - 20.7.2022
+
+- Fixed `@solana/web3.js` version to 1.47.3
+  - 1.48.x has react-native in peer dependencies
+
+## [1.1.2] - 20.7.2022
+
+- Parse arb type to firebase type
+
 ## [1.1.1] - 20.7.2022
 
 - Swapping back remaining SOL from `minting` arbitrage, because of UXD Program rounding
