@@ -3,6 +3,10 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [1.1.1] - 20.7.2022
+
+- Swapping back remaining SOL from `minting` arbitrage, because of UXD Program rounding
+
 ## [1.1.0] - 19.7.2022
 
 - Code refactoring

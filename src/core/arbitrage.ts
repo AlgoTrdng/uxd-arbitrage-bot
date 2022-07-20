@@ -61,7 +61,11 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     })
 
     if (!swapOutputUi) {
-      return -1
+      return {
+        priceDiff: -1,
+        price: null,
+        swapOutputUi: null,
+      }
     }
 
     const mintOutputUi = simulateMint({
@@ -69,7 +73,11 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
       inputAmountUi: swapOutputUi,
     })
 
-    return calculatePriceDiff(uxdUiBalance, mintOutputUi)
+    return {
+      priceDiff: calculatePriceDiff(uxdUiBalance, mintOutputUi),
+      price: Number((mintOutputUi / swapOutputUi).toFixed(4)),
+      swapOutputUi,
+    }
   }
 
   while (true) {
@@ -80,10 +88,15 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
     const uxdUiBalance = getUiAmount(state.uxdChainBalance, UXD_DECIMALS)
     const safeInputAmount = uxdUiBalance - 1
-    const [mintPriceDiff, redeemPriceDiff] = await Promise.all([
+    const [
+      mintSimulationResult,
+      redeemPriceDiff,
+    ] = await Promise.all([
       getMintPriceDifference(safeInputAmount),
       getRedeemPriceDifference(safeInputAmount),
     ])
+
+    const { priceDiff: mintPriceDiff } = mintSimulationResult
 
     console.log({
       mintPriceDiff,
@@ -155,23 +168,36 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
         // ------------
         // EXECUTE MINT
         const mintInputBalance = getUiAmount(solChainBalance - MINIMUM_SOL_CHAIN_AMOUNT, SOL_DECIMALS)
-        let mintResponse: SendTxResponse = null
+        // Real input amount that UXD program will use
+        const realMintInputBalance = Math.floor(mintInputBalance * 100) / 100
 
-        do {
-          if (!mintResponse) {
-            await wait()
-          }
+        const executeMint = async () => {
+          let mintResponse: SendTxResponse = null
 
-          const mintTx = await uxdWrapper.createMintRawTransaction(mintInputBalance)
-          mintResponse = await sendAndConfirmTransaction(connection, mintTx)
-        } while (!mintResponse)
+          do {
+            if (!mintResponse) {
+              await wait()
+            }
+
+            const mintTx = await uxdWrapper.createMintRawTransaction(realMintInputBalance)
+            mintResponse = await sendAndConfirmTransaction(connection, mintTx)
+          } while (!mintResponse)
+
+          return mintResponse
+        }
+
+        const [mintResponse] = await Promise.all([
+          executeMint(),
+          // Swap the remaining SOL amount back to UXD
+          jupiterWrapper.fetchRouteInfoAndSwap({
+            swapChainAmount: getChainAmount(mintInputBalance - realMintInputBalance, SOL_DECIMALS),
+            inputMint: mint.SOL,
+            outputMint: mint.UXD,
+          }),
+        ])
 
         state.uxdChainBalance = mintResponse.uxdChainBalance
 
-        console.log('Successful mint ARB: ', {
-          input: uxdUiBalance,
-          output: getUiAmount(state.uxdChainBalance, UXD_DECIMALS),
-        })
         emitEvent('arbitrage-success', state.uxdChainBalance)
         break
       }
@@ -257,10 +283,6 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
           }
         }
 
-        console.log('Successful redeem ARB: ', {
-          input: uxdUiBalance,
-          output: getUiAmount(state.uxdChainBalance, UXD_DECIMALS),
-        })
         emitEvent('arbitrage-success', state.uxdChainBalance)
       }
     }
