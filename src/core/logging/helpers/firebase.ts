@@ -6,7 +6,7 @@ import { credential } from 'firebase-admin'
 import path from 'path'
 
 import appConfig from '../../../app.config'
-import { ArbitrageType } from '../../../state'
+import { AppStatuses, ArbitrageType } from '../../../state'
 
 const getFirebaseConfigPath = () => {
   const { APP_ENV } = process.env
@@ -37,20 +37,26 @@ type SaveToFirebaseConfig = {
   type: ArbitrageType
 }
 
+const firebaseArbTypes = {
+  [AppStatuses.MINTING]: 'mint',
+  [AppStatuses.REDEEMING]: 'redeem',
+}
+
 export const saveToFirebase = async ({
   postArbitrageUiBalance,
   preArbitrageUiBalance,
   profitBps,
   type,
 }: SaveToFirebaseConfig) => {
+  const firebaseType = firebaseArbTypes[type]
   const executedAt = new Date()
   const firebaseDocumentData = {
     oldAmount: preArbitrageUiBalance,
     newAmount: postArbitrageUiBalance,
     wasSuccessful: true,
     profit: Number(profitBps.toFixed(4)),
+    type: firebaseType,
     executedAt,
-    type,
   }
 
   await saveDocument(
