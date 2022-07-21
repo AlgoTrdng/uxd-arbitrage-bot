@@ -3,6 +3,10 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [1.1.4] - 21.7.2022
+
+- Fixed decimal rounding on mint arb initial swap retry
+
 ## [1.1.3] - 20.7.2022
 
 - Fixed `@solana/web3.js` version to 1.47.3

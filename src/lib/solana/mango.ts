@@ -61,11 +61,11 @@ export class MangoWrapper {
 
     this.connection.onAccountChange(asks, (accountInfo) => {
       const _asks = new BookSide(asks, this.perpMarket, BookSideLayout.decode(accountInfo.data))
-      this.asks = _asks.getL2Ui(5)
+      this.asks = _asks.getL2Ui(10)
     })
     this.connection.onAccountChange(bids, (accountInfo) => {
       const _bids = new BookSide(bids, this.perpMarket, BookSideLayout.decode(accountInfo.data))
-      this.bids = _bids.getL2Ui(5)
+      this.bids = _bids.getL2Ui(10)
     })
   }
 }

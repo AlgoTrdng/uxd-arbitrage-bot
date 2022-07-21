@@ -124,11 +124,15 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
         console.log('💱 Executing mint arbitrage with: ', safeInputAmount)
         // ------------
         // EXECUTE SWAP
-        let swapResult = await jupiterWrapper.fetchRouteInfoAndSwap({
-          swapChainAmount: getChainAmount(safeInputAmount, UXD_DECIMALS),
-          inputMint: mint.UXD,
-          outputMint: mint.SOL,
-        })
+        const swap = async () => (
+          jupiterWrapper.fetchRouteInfoAndSwap({
+            swapChainAmount: getChainAmount(safeInputAmount, UXD_DECIMALS),
+            inputMint: mint.UXD,
+            outputMint: mint.SOL,
+          })
+        )
+
+        let swapResult = await swap()
 
         while (!swapResult) {
           await wait()
@@ -148,11 +152,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
             break
           }
 
-          swapResult = await jupiterWrapper.fetchRouteInfoAndSwap({
-            swapChainAmount: getChainAmount(safeInputAmount, SOL_DECIMALS),
-            inputMint: mint.UXD,
-            outputMint: mint.SOL,
-          })
+          swapResult = await swap()
         }
 
         // Get SOL balance, at this point SOL balance us higher than 0.15 SOL
