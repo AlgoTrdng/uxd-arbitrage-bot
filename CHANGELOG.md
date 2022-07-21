@@ -3,6 +3,10 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [1.1.5] - 21.7.2022
+
+- Checking average of previous price diffs
+
 ## [1.1.4] - 21.7.2022
 
 - Fixed decimal rounding on mint arb initial swap retry

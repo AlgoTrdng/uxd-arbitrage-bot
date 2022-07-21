@@ -80,6 +80,36 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     }
   }
 
+  // Average of last 20 price diffs
+  const priceDiffWatcher = () => (
+    new Proxy<{
+      value: null | number
+      previous: number[]
+    }>({
+      value: null,
+      previous: [],
+    }, {
+      set(target, prop, value: number[]) {
+        if (prop !== 'previous') {
+          return false
+        }
+        if (target[prop].length < 20) {
+          target[prop] = value
+          return true
+        }
+
+        const newValue = value.slice(1)
+        target[prop] = newValue
+        const avg = newValue.reduce((sum, d) => sum + d, 0) / 20
+        target.value = avg
+        return true
+      },
+    })
+  )
+
+  const mintPriceDiffsAverage = priceDiffWatcher()
+  const redeemPriceDiffsAverage = priceDiffWatcher()
+
   while (true) {
     await wait(intervalMs)
     if (state.appStatus.value !== AppStatuses.SCANNING) {
@@ -98,6 +128,15 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
     const { priceDiff: mintPriceDiff } = mintSimulationResult
 
+    mintPriceDiffsAverage.previous = [
+      ...mintPriceDiffsAverage.previous,
+      mintPriceDiff,
+    ]
+    redeemPriceDiffsAverage.previous = [
+      ...redeemPriceDiffsAverage.previous,
+      redeemPriceDiff,
+    ]
+
     console.log({
       mintPriceDiff,
       redeemPriceDiff,
@@ -112,6 +151,20 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     }
 
     const type: ArbitrageType = mintPriceDiff > redeemPriceDiff ? 'minting' : 'redeeming'
+
+    // -------------------------
+    // Check average price diffs
+    const { value: mintsAvg } = mintPriceDiffsAverage
+    const { value: redeemsAvg } = redeemPriceDiffsAverage
+
+    console.log({ mintsAvg, redeemsAvg })
+    if (
+      (type === AppStatuses.MINTING && (!mintsAvg || mintsAvg < 0.05))
+      || (type === AppStatuses.REDEEMING && (!redeemsAvg || redeemsAvg < 0.05))
+    ) {
+      continue
+    }
+
     emitEvent('arbitrage-start', {
       uxdChainBalance: state.uxdChainBalance,
       type,
