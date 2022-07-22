@@ -226,14 +226,20 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
         const executeMint = async () => {
           let mintResponse: SendTxResponse = null
-
+          let mintTx = await uxdWrapper.createMintRawTransaction(realMintInputBalance)
           do {
+            mintResponse = await sendAndConfirmTransaction(connection, mintTx)
+
             if (!mintResponse) {
               await wait()
             }
 
-            const mintTx = await uxdWrapper.createMintRawTransaction(realMintInputBalance)
-            mintResponse = await sendAndConfirmTransaction(connection, mintTx)
+            const blockHeight = await forceOnError(
+              () => connection.getBlockHeight(),
+            )
+            if (mintTx.lastValidBlockHeight! < blockHeight) {
+              mintTx = await uxdWrapper.createMintRawTransaction(realMintInputBalance)
+            }
           } while (!mintResponse)
 
           return mintResponse
@@ -260,12 +266,19 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
         // -----------------
         // EXECUTE REDEMPTION
         let redeemResponse: SendTxResponse = null
+        let redeemTx = await uxdWrapper.createRedeemRawTransaction(safeInputAmount)
 
         // Try to send TX until:
         //  - it is successful
         //  - price diff is lower than minimum threshold
         while (true) {
-          const redeemTx = await uxdWrapper.createRedeemRawTransaction(safeInputAmount)
+          const blockHeight = await forceOnError(
+            () => connection.getBlockHeight(),
+          )
+          if (redeemTx.lastValidBlockHeight! < blockHeight) {
+            redeemTx = await uxdWrapper.createRedeemRawTransaction(safeInputAmount)
+          }
+
           redeemResponse = await sendAndConfirmTransaction(connection, redeemTx)
 
           if (redeemResponse) {

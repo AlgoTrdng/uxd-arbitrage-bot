@@ -3,6 +3,10 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [1.1.6] - 23.7.2022
+
+- Bugfix: Recreating redeem and mint tx after blockHeight expires
+
 ## [1.1.5] - 21.7.2022
 
 - Checking average of previous price diffs
