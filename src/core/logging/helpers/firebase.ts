@@ -3,24 +3,18 @@ import { initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 /* eslint-enable import/no-unresolved */
 import { credential } from 'firebase-admin'
-import path from 'path'
 
 import appConfig from '../../../app.config'
 import { AppStatuses, ArbitrageType } from '../../../state'
 
-const getFirebaseConfigPath = () => {
-  const { APP_ENV } = process.env
-
-  if (APP_ENV !== 'prod' && APP_ENV !== 'dev') {
-    throw Error('Missing ENV environment variable')
-  }
-
-  const firebaseConfigFilePath = path.join(__dirname, `../../../../firebase-admin-credentials.${APP_ENV}.json`)
-  return firebaseConfigFilePath
-}
+const parseFirebaseAdminCredentials = () => ({
+  projectId: appConfig.FB_project_id,
+  privateKey: appConfig.FB_private_key,
+  clientEmail: appConfig.FB_client_email,
+})
 
 const app = initializeApp({
-  credential: credential.cert(getFirebaseConfigPath()),
+  credential: credential.cert(parseFirebaseAdminCredentials()),
   databaseURL: `https://${appConfig.FIREBASE_PROJECT_ID}.europe-west1.firebasedatabase.app`,
 })
 const database = getFirestore(app)
