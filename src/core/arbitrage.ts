@@ -61,11 +61,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     })
 
     if (!swapOutputUi) {
-      return {
-        priceDiff: -1,
-        price: null,
-        swapOutputUi: null,
-      }
+      return -1
     }
 
     const mintOutputUi = simulateMint({
@@ -73,42 +69,8 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
       inputAmountUi: swapOutputUi,
     })
 
-    return {
-      priceDiff: calculatePriceDiff(uxdUiBalance, mintOutputUi),
-      price: Number((mintOutputUi / swapOutputUi).toFixed(4)),
-      swapOutputUi,
-    }
+    return calculatePriceDiff(uxdUiBalance, mintOutputUi)
   }
-
-  // Average of last 20 price diffs
-  const priceDiffWatcher = () => (
-    new Proxy<{
-      value: null | number
-      previous: number[]
-    }>({
-      value: null,
-      previous: [],
-    }, {
-      set(target, prop, value: number[]) {
-        if (prop !== 'previous') {
-          return false
-        }
-        if (target[prop].length < 20) {
-          target[prop] = value
-          return true
-        }
-
-        const newValue = value.slice(1)
-        target[prop] = newValue
-        const avg = newValue.reduce((sum, d) => sum + d, 0) / 20
-        target.value = avg
-        return true
-      },
-    })
-  )
-
-  const mintPriceDiffsAverage = priceDiffWatcher()
-  const redeemPriceDiffsAverage = priceDiffWatcher()
 
   while (true) {
     await wait(intervalMs)
@@ -117,76 +79,93 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
     }
 
     const uxdUiBalance = getUiAmount(state.uxdChainBalance, UXD_DECIMALS)
-    const safeInputAmount = uxdUiBalance - 1
-    const [
-      mintSimulationResult,
-      redeemPriceDiff,
-    ] = await Promise.all([
-      getMintPriceDifference(safeInputAmount),
-      getRedeemPriceDifference(safeInputAmount),
-    ])
+    const safeInputAmount = uxdUiBalance - 1 // highest input amount
 
-    const { priceDiff: mintPriceDiff } = mintSimulationResult
+    // Check price diffs for highest possible amount
+    // If arb is not possible check for lower amounts
+    const getArbType = (mintPriceDiff: number, redeemPriceDiff: number): ArbitrageType | null => {
+      if (
+        mintPriceDiff < config.minimumPriceDiff
+        && redeemPriceDiff < config.minimumPriceDiff
+      ) {
+        return null
+      }
 
-    mintPriceDiffsAverage.previous = [
-      ...mintPriceDiffsAverage.previous,
-      mintPriceDiff,
-    ]
-    redeemPriceDiffsAverage.previous = [
-      ...redeemPriceDiffsAverage.previous,
-      redeemPriceDiff,
-    ]
+      return mintPriceDiff > redeemPriceDiff ? 'minting' : 'redeeming'
+    }
 
-    console.log({
-      mintPriceDiff,
-      redeemPriceDiff,
-    })
+    const arbSetup = await (async () => {
+      const mintPriceDiff = await getMintPriceDifference(safeInputAmount)
+      const redeemPriceDiff = await getRedeemPriceDifference(safeInputAmount)
+      console.log({
+        amount: safeInputAmount,
+        mintPriceDiff,
+        redeemPriceDiff,
+      })
+      let arbType = getArbType(mintPriceDiff, redeemPriceDiff)
 
-    // if both requests failed or price diffs are lower, continue
-    if (
-      mintPriceDiff < config.minimumPriceDiff
-      && redeemPriceDiff < config.minimumPriceDiff
-    ) {
+      if (arbType) {
+        return {
+          amountUi: safeInputAmount,
+          arbType,
+        }
+      }
+
+      let remaining = safeInputAmount - config.sizeDecrementStep
+      while (remaining > 20) {
+        const simulationResult = await Promise.all([
+          getMintPriceDifference(remaining),
+          getRedeemPriceDifference(remaining),
+        ])
+        console.log({
+          amount: remaining,
+          mintPriceDiff: simulationResult[0],
+          redeemPriceDiff: simulationResult[1],
+        })
+        arbType = getArbType(...simulationResult)
+
+        if (!arbType) {
+          remaining -= config.sizeDecrementStep
+          continue
+        }
+
+        return {
+          arbType,
+          amountUi: remaining,
+        }
+      }
+
+      return null
+    })()
+
+    if (!arbSetup) {
       continue
     }
 
-    const type: ArbitrageType = mintPriceDiff > redeemPriceDiff ? 'minting' : 'redeeming'
-
-    // -------------------------
-    // Check average price diffs
-    const { value: mintsAvg } = mintPriceDiffsAverage
-    const { value: redeemsAvg } = redeemPriceDiffsAverage
-
-    console.log({ mintsAvg, redeemsAvg })
-    if (
-      (type === AppStatuses.MINTING && (!mintsAvg || mintsAvg < 0.05))
-      || (type === AppStatuses.REDEEMING && (!redeemsAvg || redeemsAvg < 0.05))
-    ) {
-      continue
-    }
+    const { arbType, amountUi: arbInputAmountUi } = arbSetup
 
     emitEvent('arbitrage-start', {
       uxdChainBalance: state.uxdChainBalance,
-      type,
+      type: arbType,
     })
 
     // eslint-disable-next-line default-case
-    switch (type) {
+    switch (arbType) {
       case 'minting': {
         state.appStatus.value = AppStatuses.MINTING
-        console.log('💱 Executing mint arbitrage with: ', safeInputAmount)
+        console.log('💱 Executing mint arbitrage with: ', arbInputAmountUi)
         // ------------
         // EXECUTE SWAP
         const swap = async () => (
           jupiterWrapper.fetchRouteInfoAndSwap({
-            swapChainAmount: getChainAmount(safeInputAmount, UXD_DECIMALS),
+            swapChainAmount: getChainAmount(arbInputAmountUi, UXD_DECIMALS),
             inputMint: mint.UXD,
             outputMint: mint.SOL,
           })
         )
 
         let swapResult = await swap()
-
+        const preArbUxdAmount = state.uxdChainBalance
         while (!swapResult) {
           await wait()
           const wSolChainBalance = await forceOnError(
@@ -201,16 +180,16 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
 
           await state.syncUxdBalance(connection)
           // If current UXD balance is lower than input, swap was successful
-          if (state.uxdChainBalance < safeInputAmount) {
+          if (state.uxdChainBalance < preArbUxdAmount - arbInputAmountUi) {
             break
           }
 
           swapResult = await swap()
         }
 
-        // Get SOL balance, at this point SOL balance us higher than 0.15 SOL
+        // Get SOL balance, at this point SOL balance us higher than 0.115 SOL
         let solChainBalance = 0
-        while (solChainBalance < MINIMUM_SOL_CHAIN_AMOUNT + 50_000_000) {
+        while (solChainBalance < MINIMUM_SOL_CHAIN_AMOUNT + 15_000_000) {
           solChainBalance = await forceOnError(
             () => connection.getBalance(config.SOL_PUBLIC_KEY),
             500,
@@ -262,11 +241,11 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
       }
       case 'redeeming': {
         state.appStatus.value = AppStatuses.REDEEMING
-        console.log('💱 Executing redeem arbitrage with: ', safeInputAmount)
+        console.log('💱 Executing redeem arbitrage with: ', arbInputAmountUi)
         // -----------------
         // EXECUTE REDEMPTION
         let redeemResponse: SendTxResponse = null
-        let redeemTx = await uxdWrapper.createRedeemRawTransaction(safeInputAmount)
+        let redeemTx = await uxdWrapper.createRedeemRawTransaction(arbInputAmountUi)
 
         // Try to send TX until:
         //  - it is successful
@@ -276,7 +255,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
             () => connection.getBlockHeight(),
           )
           if (redeemTx.lastValidBlockHeight! < blockHeight) {
-            redeemTx = await uxdWrapper.createRedeemRawTransaction(safeInputAmount)
+            redeemTx = await uxdWrapper.createRedeemRawTransaction(arbInputAmountUi)
           }
 
           redeemResponse = await sendAndConfirmTransaction(connection, redeemTx)
@@ -285,7 +264,7 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
             break
           }
 
-          const currentPriceDiff = await getRedeemPriceDifference(safeInputAmount)
+          const currentPriceDiff = await getRedeemPriceDifference(arbInputAmountUi)
           if (currentPriceDiff < config.minimumPriceDiff) {
             break
           }
@@ -298,7 +277,6 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
         }
 
         const {
-          // UXD balance after redemption, will be close to 0
           uxdChainBalance: postRedeemUxdAmount,
           solChainBalance: redeemOutputSolAmount,
         } = redeemResponse
@@ -343,7 +321,8 @@ export const startArbitrageLoop = async (connection: Connection, intervalMs: num
           await state.syncUxdBalance(connection)
 
           // new balance can not be lower than jupiter output if the swap was successful
-          while (state.uxdChainBalance < swapResult.outputAmount) {
+          while (state.uxdChainBalance < postRedeemUxdAmount + swapResult.outputAmount) {
+            console.log(state.uxdChainBalance, postRedeemUxdAmount + swapResult.outputAmount)
             await wait()
             await state.syncUxdBalance(connection)
           }

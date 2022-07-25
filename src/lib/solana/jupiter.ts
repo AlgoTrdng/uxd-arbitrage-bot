@@ -134,7 +134,7 @@ export class JupiterWrapper {
     const jupiter = await Jupiter.load({
       cluster: `${cluster}-beta` as 'mainnet-beta',
       user: SOL_PRIVATE_KEY,
-      routeCacheDuration: 10_000,
+      routeCacheDuration: 5000,
       connection,
     })
 

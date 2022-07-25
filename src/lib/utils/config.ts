@@ -35,7 +35,7 @@ export const loadEnvVariables = () => {
 type AppConfig = {
   cluster: 'mainnet'
   minimumPriceDiff: number
-  log: boolean
+  sizeDecrementStep: number
 
   defaultUxdUiBalance: number
   maximumUxdUiBalance: number
