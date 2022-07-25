@@ -9,7 +9,7 @@ import { AppStatuses, ArbitrageType } from '../../../state'
 
 const parseFirebaseAdminCredentials = () => ({
   projectId: appConfig.FB_project_id,
-  privateKey: appConfig.FB_private_key,
+  privateKey: appConfig.FB_private_key.replaceAll(',', '\n'),
   clientEmail: appConfig.FB_client_email,
 })
 
