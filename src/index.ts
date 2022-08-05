@@ -1,20 +1,25 @@
-import { Connection } from '@solana/web3.js'
+import { setTimeout } from 'timers/promises'
+import { config } from './config'
 
-import { startArbitrageLoop } from './core/arbitrage'
-import { initWrappers } from './lib/solana'
-import { initLogging } from './core/logging'
-import { state } from './state'
-import { watchStatusAndReBalance } from './core/reBalance'
-import config from './app.config'
+import { initJupiter } from './jupiter'
+import { subscribeToMangoAsks } from './uxd'
 
-(async () => {
-  const connection = new Connection(config.SOL_RPC_ENDPOINT, 'confirmed')
-  const wrappers = await initWrappers(connection)
+const main = async () => {
+  const jupiter = await initJupiter()
+  const getAsks = await subscribeToMangoAsks()
 
-  await state.syncAllBalances(connection)
+  const scanLevelsIncrement = 20
+  const scanLevels = Array.from(
+    { length: config.MAX_UXD_AMOUNT_UI / scanLevelsIncrement },
+    (_, i) => (i + 1) * 20,
+  )
 
-  await initLogging()
-  watchStatusAndReBalance(connection, wrappers.jupiterWrapper)
+  console.log(scanLevels)
+  // -------------
+  // MAIN BOT LOOP
+  while (true) {
+    await setTimeout(10_000)
+  }
+}
 
-  await startArbitrageLoop(connection, 10_000, wrappers)
-})()
+main()

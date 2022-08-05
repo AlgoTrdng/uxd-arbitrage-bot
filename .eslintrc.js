@@ -24,7 +24,6 @@ module.exports = {
         js: 'never', jsx: 'never', ts: 'never', tsx: 'never',
       },
     ],
-    'max-len': ['error', { code: 150 }],
     'no-use-before-define': 0,
     'no-underscore-dangle': 0,
     semi: ['error', 'never'],
