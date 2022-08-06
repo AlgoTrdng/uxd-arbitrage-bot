@@ -1,16 +1,10 @@
-import { floor } from '../helpers/amount'
+import { Decimals } from '../../constants'
+import { floor } from '../../helpers/amount'
 
 const MANGO_FEES = 0.04 / 100
 
-export const Decimals = {
-  USD: 6,
-  SOL: 9,
-} as const
-
-export type Token = keyof typeof Decimals
-
 const subtractFees = (inputAmountUi: number, decimals: number) => {
-  const feesAmount = inputAmountUi / MANGO_FEES
+  const feesAmount = inputAmountUi * MANGO_FEES
   return floor(inputAmountUi - feesAmount, decimals)
 }
 

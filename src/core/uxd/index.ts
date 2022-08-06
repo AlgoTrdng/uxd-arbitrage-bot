@@ -7,9 +7,14 @@ import {
   MangoClient,
 } from '@blockworks-foundation/mango-client'
 
-import { connection } from '../config'
+import { connection } from '../../config'
 
-export const subscribeToMangoAsks = async () => {
+export type OrderbookSide = 'asks' | 'bids'
+export type Order = [number, number]
+export type Orderbook = Order[]
+export type OrderbookSideGetter = (side: OrderbookSide) => Orderbook
+
+export const subscribeToMangoAsks = async (): Promise<OrderbookSideGetter> => {
   // -----------
   // Init mango
   const config = new Config(IDS)
@@ -39,15 +44,27 @@ export const subscribeToMangoAsks = async () => {
 
   // ---------------------------
   // Subscribe to Mango orderbook
-  let asks: [number, number][] = []
+  const orderbook = new Map<OrderbookSide, Orderbook>([
+    ['asks', []],
+    ['bids', []],
+  ])
+
   connection.onAccountChange(perpMarketConfig.asksKey, (accountInfo) => {
     const bookSide = new BookSide(
       perpMarketConfig.asksKey,
       perpMarket,
       BookSideLayout.decode(accountInfo.data),
     )
-    asks = bookSide.getL2Ui(10)
+    orderbook.set('asks', bookSide.getL2Ui(10))
+  })
+  connection.onAccountChange(perpMarketConfig.bidsKey, (accountInfo) => {
+    const bookSide = new BookSide(
+      perpMarketConfig.asksKey,
+      perpMarket,
+      BookSideLayout.decode(accountInfo.data),
+    )
+    orderbook.set('bids', bookSide.getL2Ui(10))
   })
 
-  return () => asks
+  return (side: OrderbookSide) => orderbook.get(side)!
 }

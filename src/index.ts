@@ -1,24 +1,48 @@
 import { setTimeout } from 'timers/promises'
-import { config } from './config'
+import { initPriceDiffsMAs, updatePriceDiffsAndFindArb } from './core/priceDiffs'
 
-import { initJupiter } from './jupiter'
-import { subscribeToMangoAsks } from './uxd'
+import { Directions, initJupiter } from './core/jupiter'
+import { subscribeToMangoAsks } from './core/uxd'
+import { fetchCoingeckoSolPrice } from './core/coingecko'
 
 const main = async () => {
   const jupiter = await initJupiter()
-  const getAsks = await subscribeToMangoAsks()
+  const getOrderbookSide = await subscribeToMangoAsks()
 
-  const scanLevelsIncrement = 20
-  const scanLevels = Array.from(
-    { length: config.MAX_UXD_AMOUNT_UI / scanLevelsIncrement },
-    (_, i) => (i + 1) * 20,
-  )
-
-  console.log(scanLevels)
   // -------------
   // MAIN BOT LOOP
+  const priceDiffs = initPriceDiffsMAs()
+
   while (true) {
     await setTimeout(10_000)
+    const arbOpportunity = await updatePriceDiffsAndFindArb({
+      jupiter,
+      priceDiffsMAs: priceDiffs,
+      getOrderbookSide,
+    })
+
+    if (!arbOpportunity) {
+      continue
+    }
+
+    const { inputAmountUi, direction } = arbOpportunity
+
+    switch (direction) {
+      case Directions.MINT: {
+        const coingeckoSolPrice = await fetchCoingeckoSolPrice()
+        if (!coingeckoSolPrice) {
+          break
+        }
+
+        const solInputAmount = inputAmountUi / coingeckoSolPrice
+
+        break
+      }
+      case Directions.REDEMPTION: {
+        break
+      }
+      default: throw Error(`Unknown arb direction: ${direction}`)
+    }
   }
 }
 

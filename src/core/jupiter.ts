@@ -1,8 +1,9 @@
-import { Jupiter, SwapMode } from '@jup-ag/core'
+import { Jupiter } from '@jup-ag/core'
 import { PublicKey } from '@solana/web3.js'
 import JSBI from 'jsbi'
 
 import { connection, walletKeypair } from '../config'
+import { SOL_MINT, UXD_MINT } from '../constants'
 
 export const initJupiter = async () => (
   Jupiter.load({
@@ -20,20 +21,40 @@ export type RouteParams = {
   exactOut?: true
 }
 
-type FetchBestJupiterRouteParams = {
+const mints = [
+  SOL_MINT,
+  UXD_MINT,
+]
+
+export const Directions = {
+  REDEMPTION: 'redemption',
+  MINT: 'mint',
+} as const
+export type Direction = typeof Directions[keyof typeof Directions]
+
+export type JupiterActionParams = {
   jupiter: Jupiter
-} & RouteParams
+  amountRaw: number
+  direction: Direction
+  forceFetch?: true
+}
 
 export const fetchBestJupiterRoute = async ({
   jupiter,
   amountRaw,
-  exactOut,
-  ...routeParams
-}: FetchBestJupiterRouteParams) => {
-  const swapMode = exactOut ? SwapMode.ExactOut : SwapMode.ExactIn
+  direction,
+  forceFetch,
+}: JupiterActionParams) => {
+  /*
+    Directions
+    - MINT -> SWAP UXD to SOL
+    - REDEEM -> SWAP SOL to UXD
+  */
+  const [inputMint, outputMint] = direction === Directions.MINT ? [mints[1], mints[0]] : mints
   const { routesInfos } = await jupiter.computeRoutes({
-    ...routeParams,
-    swapMode,
+    inputMint,
+    outputMint,
+    forceFetch,
     amount: JSBI.BigInt(amountRaw),
     slippage: 0.25,
   })
@@ -51,7 +72,7 @@ export type SwapResult = {
 export const fetchBestRouteAndExecuteSwap = async ({
   jupiter,
   ...routeParams
-}: FetchBestJupiterRouteParams) => {
+}: JupiterActionParams) => {
   const bestRoute = await fetchBestJupiterRoute({ jupiter, ...routeParams })
   const { execute } = await jupiter.exchange({ routeInfo: bestRoute })
   const swapResult = await execute()

@@ -34,3 +34,6 @@ export const connection = new Connection(SOL_RPC_ENDPOINT, 'confirmed')
 const pkNumArray = SOL_PRIVATE_KEY.split(',').map((x) => Number(x))
 const pkBuffer = Buffer.from(new Uint8Array(pkNumArray))
 export const walletKeypair = Keypair.fromSecretKey(pkBuffer)
+
+export const MIN_PRICE_DIFF = 0.15
+export const MIN_MA_PRICE_DIFF = 0.05

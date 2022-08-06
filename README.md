@@ -13,6 +13,11 @@ pnpm i
 ```env
 SOL_RPC_ENDPOINT=solana RPC endpoint url
 SOL_PRIVATE_KEY=solana private key byte array as string
+
+# If UXD amount reaches MAX_UXD_AMOUNT_UI threshold,
+# bot swaps all UXD above MIN_UXD_AMOUNT_UI to USDC
+MAX_UXD_AMOUNT_UI=number
+MIN_UXD_AMOUNT_UI=number
 ```
 
 ## Start bot
