@@ -31,3 +31,7 @@ npm run start:dev
 ```sh
 npm run start:prod
 ```
+
+# TODO
+
+- Setup production and development configs in json file

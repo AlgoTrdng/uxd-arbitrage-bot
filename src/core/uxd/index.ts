@@ -1,70 +1,176 @@
 import {
-  BookSide,
-  BookSideLayout,
-  Config,
-  getPerpMarketByBaseSymbol,
-  IDS,
-  MangoClient,
-} from '@blockworks-foundation/mango-client'
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createSyncNativeInstruction,
+} from '@solana/spl-token'
+import {
+  PublicKey, SystemProgram, Transaction, TransactionInstruction,
+} from '@solana/web3.js'
+import {
+  Controller,
+  createAndInitializeMango,
+  MangoDepository,
+  SOL_DECIMALS,
+  USDC,
+  USDC_DECIMALS,
+  UXDClient,
+  UXD_DECIMALS,
+  WSOL,
+} from '@uxd-protocol/uxd-client'
 
-import { connection } from '../../config'
+import { connection, walletKeypair } from '../../config'
+import { Decimals } from '../../constants'
+import { toRaw } from '../../helpers/amount'
+import { forceOnError } from '../../helpers/forceOnError'
 
-export type OrderbookSide = 'asks' | 'bids'
-export type Order = [number, number]
-export type Orderbook = Order[]
-export type OrderbookSideGetter = (side: OrderbookSide) => Orderbook
-
-export const subscribeToMangoAsks = async (): Promise<OrderbookSideGetter> => {
-  // -----------
-  // Init mango
-  const config = new Config(IDS)
-  const groupConfig = config.getGroupWithName('mainnet.1')
-
-  if (!groupConfig) {
-    throw Error('Can not find group config')
-  }
-
-  const client = new MangoClient(connection, groupConfig.mangoProgramId)
-  const perpMarketConfig = getPerpMarketByBaseSymbol(
-    groupConfig,
+export const initUxdClient = async () => {
+  const UXD_PROGRAM_ID = new PublicKey('UXD8m9cvwk4RcSxnX2HZ9VudQCEeDH6fRnB4CAP57Dr')
+  const depository = new MangoDepository(
+    WSOL,
     'SOL',
+    SOL_DECIMALS,
+    USDC,
+    'USDC',
+    USDC_DECIMALS,
+    UXD_PROGRAM_ID,
+  )
+  const client = new UXDClient(UXD_PROGRAM_ID)
+  const controller = new Controller('UXD', UXD_DECIMALS, UXD_PROGRAM_ID)
+  const mango = await createAndInitializeMango(
+    connection,
+    'mainnet',
   )
 
-  if (!perpMarketConfig) {
-    throw Error('Can not find SOL perp market')
+  return {
+    depository,
+    client,
+    controller,
+    mango,
+  }
+}
+
+export type UxdClient = Awaited<ReturnType<typeof initUxdClient>>
+
+const buildAndSignRawTransaction = async (instructions: TransactionInstruction[]) => {
+  const latestBlockHash = await forceOnError(
+    () => connection.getLatestBlockhash(),
+  )
+
+  const transaction = new Transaction(latestBlockHash)
+  transaction.add(...instructions)
+  transaction.sign(walletKeypair)
+
+  return transaction
+}
+
+const getCollateralATA = (() => {
+  let collateralATA: PublicKey | null = null
+  return async (depository: MangoDepository) => {
+    if (collateralATA) {
+      return collateralATA
+    }
+
+    collateralATA = await getAssociatedTokenAddress(
+      depository.collateralMint,
+      walletKeypair.publicKey,
+    )
+    return collateralATA
+  }
+})()
+
+const buildCreateCollateralATAInstruction = async (
+  collateralATA: PublicKey,
+  depository: MangoDepository,
+) => {
+  const accountInfo = await forceOnError(
+    () => connection.getAccountInfo(collateralATA),
+  )
+
+  if (!accountInfo?.lamports) {
+    const createATAIx = createAssociatedTokenAccountInstruction(
+      walletKeypair.publicKey,
+      collateralATA,
+      walletKeypair.publicKey,
+      depository.collateralMint,
+    )
+    return createATAIx
   }
 
-  const mangoGroup = await client.getMangoGroup(groupConfig.publicKey)
-  const perpMarket = await mangoGroup.loadPerpMarket(
-    connection,
-    perpMarketConfig?.marketIndex,
-    perpMarketConfig?.baseDecimals,
-    perpMarketConfig?.quoteDecimals,
+  return null
+}
+
+export const buildMintRawTransaction = async (
+  inputAmountUi: number,
+  {
+    depository,
+    controller,
+    mango,
+    client,
+  }: UxdClient,
+) => {
+  const instructions: TransactionInstruction[] = []
+
+  const collateralATA = await getCollateralATA(depository)
+  const createCollateralATAIx = await buildCreateCollateralATAInstruction(
+    collateralATA,
+    depository,
+  )
+  if (createCollateralATAIx) {
+    instructions.push(createCollateralATAIx)
+  }
+
+  instructions.push(
+    SystemProgram.transfer({
+      fromPubkey: walletKeypair.publicKey,
+      toPubkey: collateralATA,
+      lamports: toRaw(inputAmountUi, Decimals.SOL),
+    }),
+    createSyncNativeInstruction(collateralATA),
+    await client.createMintWithMangoDepositoryInstruction(
+      inputAmountUi,
+      5,
+      controller,
+      depository,
+      mango,
+      walletKeypair.publicKey,
+      {},
+    ),
   )
 
-  // ---------------------------
-  // Subscribe to Mango orderbook
-  const orderbook = new Map<OrderbookSide, Orderbook>([
-    ['asks', []],
-    ['bids', []],
-  ])
+  return buildAndSignRawTransaction(instructions)
+}
 
-  connection.onAccountChange(perpMarketConfig.asksKey, (accountInfo) => {
-    const bookSide = new BookSide(
-      perpMarketConfig.asksKey,
-      perpMarket,
-      BookSideLayout.decode(accountInfo.data),
-    )
-    orderbook.set('asks', bookSide.getL2Ui(10))
-  })
-  connection.onAccountChange(perpMarketConfig.bidsKey, (accountInfo) => {
-    const bookSide = new BookSide(
-      perpMarketConfig.asksKey,
-      perpMarket,
-      BookSideLayout.decode(accountInfo.data),
-    )
-    orderbook.set('bids', bookSide.getL2Ui(10))
-  })
+export const buildRedeemRawTransaction = async (
+  inputAmountUi: number,
+  {
+    depository,
+    controller,
+    mango,
+    client,
+  }: UxdClient,
+) => {
+  const instructions: TransactionInstruction[] = []
 
-  return (side: OrderbookSide) => orderbook.get(side)!
+  const collateralATA = await getCollateralATA(depository)
+  const createCollateralATAIx = await buildCreateCollateralATAInstruction(
+    collateralATA,
+    depository,
+  )
+  if (createCollateralATAIx) {
+    instructions.push(createCollateralATAIx)
+  }
+
+  instructions.push(
+    await client.createRedeemFromMangoDepositoryInstruction(
+      inputAmountUi,
+      5,
+      controller,
+      depository,
+      mango,
+      walletKeypair.publicKey,
+      {},
+    ),
+  )
+
+  return buildAndSignRawTransaction(instructions)
 }

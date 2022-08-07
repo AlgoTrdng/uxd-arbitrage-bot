@@ -28,7 +28,7 @@
     "@jup-ag/core": "2.0.0-beta.3",
     "@solana/spl-token": "^0.2.0",
     "@solana/web3.js": "1.47.3",
-    "@uxd-protocol/uxd-client": "^2.0.0",
+    "@uxd-protocol/uxd-client": "^3.0.0",
     "dotenv": "^16.0.1",
     "firebase-admin": "^11.0.0",
     "jsbi": "^4.3.0",

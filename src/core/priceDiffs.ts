@@ -8,7 +8,7 @@ import {
   Direction,
   Directions,
 } from './jupiter'
-import { Orderbook, OrderbookSideGetter } from './uxd'
+import { Orderbook, OrderbookSideGetter } from './uxd/mango'
 import { simulateMint, simulateRedemption } from './uxd/simulateSwap'
 
 const MA_LENGTH = 20
@@ -72,7 +72,7 @@ type GetPriceDiffParams = {
  * UXD to SOL on Mango
  * SOL to UXD on Jupiter
  */
-const getRedemptionPriceDifference = async ({
+export const getRedemptionPriceDifference = async ({
   jupiter,
   inputAmountUi,
   orderbook,
