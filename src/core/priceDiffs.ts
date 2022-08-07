@@ -1,6 +1,6 @@
 import { Jupiter } from '@jup-ag/core'
 
-import { config, MIN_MA_PRICE_DIFF, MIN_PRICE_DIFF } from '../config'
+import { config } from '../config'
 import { Decimals } from '../constants'
 import { floor, toRaw, toUi } from '../helpers/amount'
 import {
@@ -41,7 +41,7 @@ class PriceDiffMAWatcher {
 export const initPriceDiffsMAs = () => {
   const priceDiffsLevelsIncrement = 20
   const priceDiffsMAs = Array.from(
-    { length: config.MAX_UXD_AMOUNT_UI / priceDiffsLevelsIncrement },
+    { length: config.maxUxdAmountUi / priceDiffsLevelsIncrement },
     (_, i) => {
       const inputAmount = (i + 1) * priceDiffsLevelsIncrement
       return {
@@ -52,8 +52,7 @@ export const initPriceDiffsMAs = () => {
     },
   )
 
-  // Reverse so we get levels from highest to lower and can break on the highets possible arb
-  return priceDiffsMAs.reverse()
+  return priceDiffsMAs
 }
 
 const calculateDifference = (input: number, output: number) => (
@@ -128,13 +127,14 @@ const isArbPossible = (
   redemptionPriceDiff: number,
   priceDiffsMA: ReturnType<typeof initPriceDiffsMAs>[number],
 ) => {
-  const isHighPriceDiff = mintPriceDiff > MIN_PRICE_DIFF || redemptionPriceDiff > MIN_PRICE_DIFF
+  const isHighPriceDiff = mintPriceDiff > config.minPriceDiff
+    || redemptionPriceDiff > config.minPriceDiff
   if (!isHighPriceDiff) {
     return null
   }
   const direction = redemptionPriceDiff > mintPriceDiff ? Directions.REDEMPTION : Directions.MINT
   const priceDiffMA = priceDiffsMA[direction].ma
-  if (!priceDiffMA || priceDiffMA < MIN_MA_PRICE_DIFF) {
+  if (!priceDiffMA || priceDiffMA < config.minMaPriceDiff) {
     return null
   }
   return direction

@@ -7,7 +7,7 @@ import { subscribeToMangoAsks } from './core/uxd/mango'
 import { floor, toRaw, toUi } from './helpers/amount'
 import { Decimals } from './constants'
 import { getSolBalanceRaw, getUxdBalanceRaw } from './helpers/getBalance'
-import { config, MIN_PRICE_DIFF } from './config'
+import { config } from './config'
 import { buildMintRawTransaction, buildRedeemRawTransaction, initUxdClient } from './core/uxd'
 import { sendAndConfirmTransaction, SuccessResponse, TransactionResponse } from './helpers/sendTransaction'
 
@@ -65,7 +65,7 @@ const main = async () => {
     }
 
     const { inputAmountUi, direction } = arbOpportunity
-
+    console.log(`Starting ${direction} arbitrage with: ${inputAmountUi} UXD`)
     switch (direction) {
       case Directions.MINT: {
         const preArbUxdBalanceRaw = await getUxdBalanceRaw()
@@ -93,11 +93,11 @@ const main = async () => {
 
         // Get SOL input amount
         let solBalanceRaw = await getSolBalanceRaw()
-        while (solBalanceRaw <= config.MIN_SOL_AMOUNT_RAW) {
+        while (solBalanceRaw <= config.minSolAmountRaw) {
           await setTimeout(500)
           solBalanceRaw = await getSolBalanceRaw()
         }
-        const solInputAmountUi = toUi(solBalanceRaw - config.MIN_SOL_AMOUNT_RAW, Decimals.SOL)
+        const solInputAmountUi = toUi(solBalanceRaw - config.minSolAmountRaw, Decimals.SOL)
         const realInputAmountUi = floor(solInputAmountUi, 2)
 
         // Mint UXD
@@ -125,9 +125,9 @@ const main = async () => {
         }
 
         console.log(
-          `Executed MINT arbitrage:\npreArbBalance: ${
+          `Executed ${direction} arbitrage:\n preArbBalance: ${
             toUi(preArbUxdBalanceRaw, Decimals.USD)
-          }\npostArbBalance: ${
+          }\n postArbBalance: ${
             toUi(postArbUxdBalanceRaw, Decimals.USD)
           }`,
         )
@@ -146,10 +146,12 @@ const main = async () => {
               orderbook: getOrderbookSide('asks'),
               forceFetch: true,
             })
-            return priceDiff > MIN_PRICE_DIFF
+            console.log({ redeemFailPriceDiff: priceDiff })
+            return priceDiff > config.minPriceDiff
           },
         )
         if (!response) {
+          console.log('Aborting redemption')
           break
         }
 
@@ -181,15 +183,15 @@ const main = async () => {
           return null
         })()
 
-        while (!postArbUxdBalanceRaw || postArbUxdBalanceRaw < preSwapUxdBalanceRaw) {
+        while (!postArbUxdBalanceRaw || postArbUxdBalanceRaw <= preSwapUxdBalanceRaw) {
           postArbUxdBalanceRaw = await getUxdBalanceRaw()
           await setTimeout(1000)
         }
 
         console.log(
-          `Executed MINT arbitrage:\npreArbBalance: ${
+          `Executed ${direction} arbitrage:\n preArbBalance: ${
             toUi(preArbUxdBalanceRaw, Decimals.USD)
-          }\npostArbBalance: ${
+          }\n postArbBalance: ${
             toUi(postArbUxdBalanceRaw, Decimals.USD)
           }`,
         )

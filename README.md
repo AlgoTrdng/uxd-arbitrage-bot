@@ -2,22 +2,56 @@
 
 ## Setup
 
-- Install dependencies
+### Install dependencies
 
 ```sh
 pnpm i
 ```
 
-- Set env variables in `.env`
+### Set env variables in `.env`
 
 ```env
 SOL_RPC_ENDPOINT=solana RPC endpoint url
 SOL_PRIVATE_KEY=solana private key byte array as string
+```
 
-# If UXD amount reaches MAX_UXD_AMOUNT_UI threshold,
-# bot swaps all UXD above MIN_UXD_AMOUNT_UI to USDC
-MAX_UXD_AMOUNT_UI=number
-MIN_UXD_AMOUNT_UI=number
+### Set app config in `app.config.json`
+
+- Development config is used with
+  - `npm run pm2:dev`
+  - `npm run start:dev`
+- Production config is used with
+  - `npm run pm2:prod`
+  - `npm run start:prod`
+
+</br>
+
+- `minMaPriceDiff` - minimum percentage value of MA of last 20 price diffs
+- `maxUxdAmountUi`,`maxUxdAmountUi`
+  - If UXD amount reaches `maxUxdAmountUi` threshold, bot swaps all UXD above `maxUxdAmountUi` to USDC
+- `minSolAmountUi` - minimum SOL amount to always be left in account for fees and such, 0.05 means 0.05 SOL
+
+```json
+{
+  "development": {
+    "minPriceDiff": "number",
+    "minMaPriceDiff": "number",
+
+    "maxUxdAmountUi": "number",
+    "minUxdAmountUi": "number",
+
+    "minSolAmountUi": "number",
+  },
+  "production": {
+    "minPriceDiff": "number",
+    "minMaPriceDiff": "number",
+
+    "maxUxdAmountUi": "number",
+    "minUxdAmountUi": "number",
+
+    "minSolAmountUi": "number",
+  }
+}
 ```
 
 ## Start bot

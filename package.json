@@ -5,10 +5,10 @@
   "scripts": {
     "build": "rm -rf dist && tsc",
     "build:w": "rm -rf dist && tsc -w",
-    "start:dev": "APP_ENV=dev node dist/index.js",
-    "start:prod": "APP_ENV=prod node dist/index.js",
-    "pm2:dev": "APP_ENV=dev pm2 start pm2.config.js",
-    "pm2:prod": "APP_ENV=prod pm2 start pm2.config.js"
+    "start:dev": "APP_ENV=development node dist/index.js",
+    "start:prod": "APP_ENV=production node dist/index.js",
+    "pm2:dev": "APP_ENV=development pm2 start pm2.config.js",
+    "pm2:prod": "APP_ENV=production pm2 start pm2.config.js"
   },
   "keywords": [],
   "author": "dmc0125",

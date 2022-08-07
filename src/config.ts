@@ -1,28 +1,24 @@
 import { Connection, Keypair } from '@solana/web3.js'
 import dotenv from 'dotenv'
 import { z } from 'zod'
+import fs from 'fs'
+import path from 'path'
 
 import { Decimals } from './constants'
 import { toRaw } from './helpers/amount'
 
 dotenv.config()
 
+// -------------------
+// Validate ENV config
 const ENV_SCHEMA = z.object({
   SOL_RPC_ENDPOINT: z.string().min(1),
   SOL_PRIVATE_KEY: z.string().min(1),
-
-  MAX_UXD_AMOUNT_UI: z.string().regex(/[0-9]/g).transform((amount) => Number(amount)),
-  MIN_UXD_AMOUNT_UI: z.string().regex(/[0-9]/g).transform((amount) => Number(amount)),
-
-  MIN_SOL_AMOUNT_UI: z.string().regex(/[0-9]/g).transform((amount) => toRaw(Number(amount), Decimals.SOL)),
 })
 
-// Validate ENV config
 const {
   SOL_PRIVATE_KEY,
   SOL_RPC_ENDPOINT,
-  MIN_SOL_AMOUNT_UI,
-  ...config
 } = (() => {
   const result = ENV_SCHEMA.safeParse(process.env)
 
@@ -30,20 +26,66 @@ const {
     throw result.error
   }
 
-  return result.data as z.infer<typeof ENV_SCHEMA>
+  return result.data
 })()
 
-const _config = {
-  ...config,
-  MIN_SOL_AMOUNT_RAW: MIN_SOL_AMOUNT_UI,
+// ---------------------
+// Parse app.config.json
+const configSchema = z.object({
+  minPriceDiff: z.number(),
+  minMaPriceDiff: z.number(),
+  maxUxdAmountUi: z.number(),
+  minUxdAmountUi: z.number(),
+  minSolAmountUi: z.number().transform((amount) => toRaw(amount, Decimals.SOL)),
+})
+type AppConfig = z.infer<typeof configSchema>
+
+const {
+  minSolAmountUi: minSolAmountRaw,
+  ...appConfig
+} = (() => {
+  const filePath = path.join(__dirname, '../app.config.json')
+  const exists = fs.existsSync(filePath)
+
+  const missingFileError = 'File app.config.js is missing or is empty'
+  if (!exists) {
+    throw Error(missingFileError)
+  }
+
+  const configFileContents = fs.readFileSync(
+    filePath,
+    { encoding: 'utf-8' },
+  )
+  if (!configFileContents.length) {
+    throw Error(missingFileError)
+  }
+
+  const parsed = JSON.parse(configFileContents) as {
+    development: AppConfig
+    production: AppConfig
+  }
+
+  if (!process.env.APP_ENV) {
+    throw Error('APP_ENV environment variable was not specified')
+  }
+  const appEnv = process.env.APP_ENV as 'development' | 'production'
+
+  const result = configSchema.safeParse(parsed[appEnv])
+  if (!result.success) {
+    throw result.error
+  }
+
+  return result.data
+})()
+
+const config = {
+  ...appConfig,
+  minSolAmountRaw,
 }
-export { _config as config }
+export { config }
 
 export const connection = new Connection(SOL_RPC_ENDPOINT, 'confirmed')
 
 const pkNumArray = SOL_PRIVATE_KEY.split(',').map((x) => Number(x))
 const pkBuffer = Buffer.from(new Uint8Array(pkNumArray))
 export const walletKeypair = Keypair.fromSecretKey(pkBuffer)
-
-export const MIN_PRICE_DIFF = 0.15
-export const MIN_MA_PRICE_DIFF = 0.05
