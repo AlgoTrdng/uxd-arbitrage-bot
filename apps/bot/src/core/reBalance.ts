@@ -9,10 +9,10 @@ export const checkAndExecuteReBalance = async (
   uxdBalanceUi: number,
   jupiter: Jupiter,
 ) => {
-  console.log(`Checking for re-balance; balance: ${uxdBalanceUi} UXD, threshold: ${config.maxUxdAmountUi + 1} UXD`)
   if (uxdBalanceUi <= config.maxUxdAmountUi + 1) {
     return
   }
+  console.log(`Executing re-balance. Balance: ${uxdBalanceUi} UXD, Threshold: ${config.maxUxdAmountUi + 1} UXD`)
 
   const swapAmountUi = uxdBalanceUi - config.minUxdAmountUi - 1
 
