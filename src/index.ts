@@ -54,17 +54,22 @@ const main = async () => {
   // MAIN BOT LOOP
   while (true) {
     await setTimeout(10_000)
-    const arbOpportunity = await updatePriceDiffsAndFindArb({
+    const arbConfig = await updatePriceDiffsAndFindArb({
       jupiter,
       priceDiffsMAs: priceDiffs,
       getOrderbookSide,
     })
-    console.log({ arbOpportunity })
-    if (!arbOpportunity) {
+
+    console.log({
+      priceDiffs: arbConfig?.priceDiffs,
+      direction: arbConfig?.arbOpportunity.direction,
+    })
+
+    if (!arbConfig) {
       continue
     }
 
-    const { inputAmountUi: maxInputAmountUi, direction } = arbOpportunity
+    const { inputAmountUi: maxInputAmountUi, direction } = arbConfig.arbOpportunity
     const preArbUxdBalanceRaw = await getUxdBalanceRaw()
     const inputAmountUi = maxInputAmountUi > preArbUxdBalanceRaw
       ? preArbUxdBalanceRaw

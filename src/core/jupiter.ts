@@ -36,7 +36,7 @@ export type FetchBestRouteParams = {
   jupiter: Jupiter
   amountRaw: number
   direction: Direction
-  forceFetch?: true
+  forceFetch?: boolean
 }
 
 export const fetchBestJupiterRoute = async ({

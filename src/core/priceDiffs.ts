@@ -8,7 +8,7 @@ import {
   Direction,
   Directions,
 } from './jupiter'
-import { Orderbook, OrderbookSideGetter } from './uxd/mango'
+import { Orderbook, OrderbookSide, OrderbookSideGetter } from './uxd/mango'
 import { simulateMint, simulateRedemption } from './uxd/simulateSwap'
 
 const MA_LENGTH = 20
@@ -63,7 +63,7 @@ type GetPriceDiffParams = {
   jupiter: Jupiter
   inputAmountUi: number
   orderbook: Orderbook
-  forceFetch?: true
+  forceFetch?: boolean
 }
 
 /**
@@ -122,33 +122,10 @@ const getMintPriceDifference = async ({
   }
 }
 
-const isArbPossible = (
-  mintPriceDiff: number,
-  redemptionPriceDiff: number,
-  priceDiffsMA: ReturnType<typeof initPriceDiffsMAs>[number],
-) => {
-  const isHighPriceDiff = mintPriceDiff > config.minPriceDiff
-    || redemptionPriceDiff > config.minPriceDiff
-  if (!isHighPriceDiff) {
-    return null
-  }
-  const direction = redemptionPriceDiff > mintPriceDiff ? Directions.REDEMPTION : Directions.MINT
-  const priceDiffMA = priceDiffsMA[direction].ma
-  if (!priceDiffMA || priceDiffMA < config.minMaPriceDiff) {
-    return null
-  }
-  return direction
-}
-
 export type UpdatePriceDiffsAndFindArb = {
   getOrderbookSide: OrderbookSideGetter
   jupiter: Jupiter
   priceDiffsMAs: ReturnType<typeof initPriceDiffsMAs>
-}
-
-type ArbOpportunity = {
-  inputAmountUi: number
-  direction: Direction
 }
 
 export const updatePriceDiffsAndFindArb = async ({
@@ -156,70 +133,58 @@ export const updatePriceDiffsAndFindArb = async ({
   jupiter,
   priceDiffsMAs,
 }: UpdatePriceDiffsAndFindArb) => {
-  // Fetch Jupiter cache update
-  // TODO: LOG highest price diff
-  let arbOpportunity: ArbOpportunity | null = await (async () => {
-    const { inputAmount } = priceDiffsMAs[0]
+  const execute = async (
+    i: number,
+    forceFetch: boolean,
+  ) => {
+    // Update price diffs
+    const { inputAmount: inputAmountUi } = priceDiffsMAs[i]
     const redemptionPriceDiff = await getRedemptionPriceDifference({
-      jupiter,
-      inputAmountUi: inputAmount,
       orderbook: getOrderbookSide('asks'),
-      forceFetch: true,
+      jupiter,
+      inputAmountUi,
+      forceFetch,
     })
     const mintPriceDiff = await getMintPriceDifference({
-      jupiter,
-      inputAmountUi: inputAmount,
       orderbook: getOrderbookSide('bids'),
-    })
-
-    priceDiffsMAs[0].redemption.addPriceDiff(redemptionPriceDiff)
-    priceDiffsMAs[0].mint.addPriceDiff(mintPriceDiff)
-
-    const arbDirection = isArbPossible(
-      mintPriceDiff,
-      redemptionPriceDiff,
-      priceDiffsMAs[0],
-    )
-
-    if (arbDirection) {
-      return {
-        inputAmountUi: inputAmount,
-        direction: arbDirection,
-      }
-    }
-
-    return null
-  })()
-
-  for (let i = 1; i < priceDiffsMAs.length; i += 1) {
-    const { inputAmount } = priceDiffsMAs[i]
-    const redemptionPriceDiff = await getRedemptionPriceDifference({
       jupiter,
-      inputAmountUi: inputAmount,
-      orderbook: getOrderbookSide('asks'),
-    })
-    const mintPriceDiff = await getMintPriceDifference({
-      jupiter,
-      inputAmountUi: inputAmount,
-      orderbook: getOrderbookSide('bids'),
+      inputAmountUi,
     })
 
     priceDiffsMAs[i].redemption.addPriceDiff(redemptionPriceDiff)
     priceDiffsMAs[i].mint.addPriceDiff(mintPriceDiff)
 
-    const arbDirection = isArbPossible(
-      mintPriceDiff,
-      redemptionPriceDiff,
-      priceDiffsMAs[i],
-    )
+    // Check if arb is possible
+    const isHighPriceDiff = mintPriceDiff > config.minPriceDiff
+      || redemptionPriceDiff > config.minPriceDiff
+    if (!isHighPriceDiff) {
+      return null
+    }
 
-    if (arbDirection) {
-      arbOpportunity = {
-        inputAmountUi: inputAmount,
-        direction: arbDirection,
-      }
+    const direction = redemptionPriceDiff > mintPriceDiff ? Directions.REDEMPTION : Directions.MINT
+    const priceDiffMA = priceDiffsMAs[i][direction].ma
+
+    if (!priceDiffMA || priceDiffMA < config.minMaPriceDiff) {
+      return null
+    }
+
+    return {
+      arbOpportunity: {
+        inputAmountUi,
+        direction,
+      },
+      priceDiffs: {
+        mint: mintPriceDiff,
+        redemption: redemptionPriceDiff,
+        ma: priceDiffMA,
+      },
     }
   }
 
-  return arbOpportunity
+  let arbConfig: Awaited<ReturnType<typeof execute>> = null
+  for (let i = 0; i < priceDiffsMAs.length; i += 1) {
+    arbConfig = await execute(i, i === 0)
+  }
+
+  return arbConfig
 }
