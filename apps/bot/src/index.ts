@@ -1,16 +1,31 @@
 import { setTimeout } from 'timers/promises'
 import { Transaction } from '@solana/web3.js'
 
-import { getRedemptionPriceDifference, initPriceDiffsMAs, updatePriceDiffsAndFindArb } from './core/priceDiffs'
+import {
+  getRedemptionPriceDifference,
+  initPriceDiffsMAs,
+  updatePriceDiffsAndFindArb,
+} from './core/priceDiffs'
 import { Directions, fetchBestRouteAndExecuteSwap, initJupiter } from './core/jupiter'
 import { subscribeToMangoAsks } from './core/uxd/mango'
-import { floor, toRaw, toUi } from './helpers/amount'
+import {
+  floor,
+  round,
+  toRaw,
+  toUi,
+} from './helpers/amount'
 import { Decimals } from './constants'
 import { getSolBalanceRaw, getUxdBalanceRaw } from './helpers/getBalance'
 import { config } from './config'
 import { buildMintRawTransaction, buildRedeemRawTransaction, initUxdClient } from './core/uxd'
-import { sendAndConfirmTransaction, SuccessResponse, TransactionResponse } from './helpers/sendTransaction'
+import {
+  sendAndConfirmTransaction,
+  SuccessResponse,
+  TransactionResponse,
+} from './helpers/sendTransaction'
 import { checkAndExecuteReBalance } from './core/reBalance'
+import { initDiscord, sendArbResultMessage } from './logging/discord'
+import { saveArbResult } from './logging/firebase'
 
 /* eslint-disable no-redeclare */
 function executeUxdTransaction(
@@ -54,6 +69,8 @@ type ArbitrageResultError = {
 }
 
 const main = async () => {
+  const discordChannel = await initDiscord()
+
   const jupiter = await initJupiter()
   const uxdClient = await initUxdClient()
   const getOrderbookSide = await subscribeToMangoAsks()
@@ -80,11 +97,11 @@ const main = async () => {
 
     const { inputAmountUi: maxInputAmountUi, direction } = arbConfig.arbOpportunity
 
-    const preArbUxdBalanceRaw = await getUxdBalanceRaw()
-    const preArbUxdBalanceUi = toUi(preArbUxdBalanceRaw, Decimals.USD)
+    const preArbUxdAmountRaw = await getUxdBalanceRaw()
+    const preArbUxdAmountUi = toUi(preArbUxdAmountRaw, Decimals.USD)
 
-    const inputAmountUi = maxInputAmountUi > preArbUxdBalanceUi
-      ? preArbUxdBalanceUi - 1
+    const inputAmountUi = maxInputAmountUi > preArbUxdAmountUi
+      ? preArbUxdAmountUi - 1
       : maxInputAmountUi
 
     console.log(
@@ -112,7 +129,7 @@ const main = async () => {
               await setTimeout(1000)
 
               const postSwapBalance = await getUxdBalanceRaw()
-              if (postSwapBalance < preArbUxdBalanceRaw) {
+              if (postSwapBalance < preArbUxdAmountRaw) {
                 break
               }
 
@@ -229,17 +246,37 @@ const main = async () => {
     }
 
     const { postArbUxdAmountRaw } = arbResult
-    const postArbUxdBalanceUi = toUi(postArbUxdAmountRaw, Decimals.USD)
+    const postArbUxdAmountUi = toUi(postArbUxdAmountRaw, Decimals.USD)
+
+    const oldAmountRounded = round(preArbUxdAmountUi, 2)
+    const newAmountRounded = round(postArbUxdAmountUi, 2)
+    const profitBps = round(newAmountRounded / oldAmountRounded - 1, 4)
 
     console.log(
       `Executed ${direction} arbitrage. PreArbBalance: ${
-        preArbUxdBalanceUi
+        oldAmountRounded
       } UXD, PostArbBalance: ${
-        postArbUxdBalanceUi
+        newAmountRounded
       } UXD`,
     )
 
-    await checkAndExecuteReBalance(postArbUxdBalanceUi, jupiter)
+    await Promise.all([
+      sendArbResultMessage({
+        channel: discordChannel,
+        oldAmount: oldAmountRounded,
+        newAmount: newAmountRounded,
+        direction,
+        profitBps,
+      }),
+      saveArbResult({
+        oldAmount: oldAmountRounded,
+        newAmount: newAmountRounded,
+        direction,
+        profitBps,
+      }),
+    ])
+
+    await checkAndExecuteReBalance(postArbUxdAmountUi, jupiter)
   }
 }
 

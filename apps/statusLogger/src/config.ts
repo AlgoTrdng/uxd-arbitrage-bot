@@ -3,13 +3,12 @@ import { z } from 'zod'
 
 dotenv.config()
 
+const reqString = () => z.string().min(1)
+
 const envSchema = z.object({
-  DISCORD_SECRET: z.string().min(1),
-  DISCORD_CHANNEL_ID: z.string().min(1),
-  FB_PROJECT_ID: z.string().min(1),
-  FB_PRIVATE_KEY: z.string().min(1),
-  FB_CLIENT_EMAIL: z.string().min(1),
-  TOKEN_SECRET: z.string().min(1),
+  DISCORD_SECRET: reqString(),
+  DISCORD_CHANNEL_ID: reqString(),
+  TOKEN_SECRET: reqString(),
 })
 
 export const secrets = (() => {

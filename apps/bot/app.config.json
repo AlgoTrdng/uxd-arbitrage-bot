@@ -1,10 +1,10 @@
 {
   "development": {
-    "minPriceDiff": 0.5,
+    "minPriceDiff": 0.05,
     "minMaPriceDiff": 0,
 
-    "maxUxdAmountUi": 200,
-    "minUxdAmountUi": 100,
+    "maxUxdAmountUi": 100,
+    "minUxdAmountUi": 20,
     "minSolAmountUi": 0.05
   },
   "production": {

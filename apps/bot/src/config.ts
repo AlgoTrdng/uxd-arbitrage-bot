@@ -9,16 +9,27 @@ import { toRaw } from './helpers/amount'
 
 dotenv.config()
 
+const requiredString = z.string().min(1)
+
 // -------------------
 // Validate ENV config
 const ENV_SCHEMA = z.object({
-  SOL_RPC_ENDPOINT: z.string().min(1),
-  SOL_PRIVATE_KEY: z.string().min(1),
+  SOL_RPC_ENDPOINT: requiredString,
+  SOL_PRIVATE_KEY: requiredString,
+
+  DISCORD_CHANNEL_ID: requiredString,
+  DISCORD_SECRET: requiredString,
+
+  FB_PRIVATE_KEY: requiredString,
+  FB_PROJECT_ID: requiredString,
+  FB_CLIENT_EMAIL: requiredString,
+  FB_COLLECTION_NAME: requiredString,
 })
 
 const {
   SOL_PRIVATE_KEY,
   SOL_RPC_ENDPOINT,
+  ...secrets
 } = (() => {
   const result = ENV_SCHEMA.safeParse(process.env)
 
@@ -28,6 +39,8 @@ const {
 
   return result.data
 })()
+
+export { secrets }
 
 // ---------------------
 // Parse app.config.json

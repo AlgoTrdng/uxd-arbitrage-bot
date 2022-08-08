@@ -1,5 +1,6 @@
 import fastify from 'fastify'
 import helmet from '@fastify/helmet'
+import rateLimit from '@fastify/rate-limit'
 import { JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts'
 
 import { secrets } from '../config'
@@ -7,6 +8,10 @@ import { secrets } from '../config'
 const app = fastify().withTypeProvider<JsonSchemaToTsProvider>()
 
 app.register(helmet)
+app.register(rateLimit, {
+  max: 5,
+  timeWindow: 10_000,
+})
 
 app.addHook('onRequest', async (req) => {
   const authHeaderKey = 'x-authentication-token'

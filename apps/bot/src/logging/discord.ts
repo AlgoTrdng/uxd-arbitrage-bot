@@ -1,30 +1,24 @@
 import { Client, EmbedBuilder, TextChannel } from 'discord.js'
-import { Direction } from '@bot/core/jupiter'
 
+import { Direction } from '../core/jupiter'
 import { secrets } from '../config'
-import { round } from '../utils'
+import { round } from '../helpers/amount'
 
 export const initDiscord = async () => {
   const client = new Client({ intents: ['GuildMessages'] })
   await client.login(secrets.DISCORD_SECRET)
 
-  const channel = await client.channels.fetch(secrets.DISCORD_CHANNEL_ID)
+  const channel = await client.channels.fetch(secrets.DISCORD_CHANNEL_ID) as TextChannel | null
 
   if (!channel) {
     throw Error(`Could not find channel with id: ${secrets.DISCORD_CHANNEL_ID}`)
   }
 
-  await (channel as TextChannel).send(
+  await channel.send(
     '🤖 Arbitrage bot started, scanning for arbitrage and listening for updates.',
   )
   return channel
 }
-
-// executedAt June 17, 2022 at 9:22:32 PM UTC+2
-// newAmount 101.48
-// oldAmount 101.47
-// profit 0.0001
-// type "redeem"
 
 const createInlineField = (name: string, value: string) => ({
   inline: true,
