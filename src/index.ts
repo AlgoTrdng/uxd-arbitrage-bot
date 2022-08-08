@@ -10,6 +10,7 @@ import { getSolBalanceRaw, getUxdBalanceRaw } from './helpers/getBalance'
 import { config } from './config'
 import { buildMintRawTransaction, buildRedeemRawTransaction, initUxdClient } from './core/uxd'
 import { sendAndConfirmTransaction, SuccessResponse, TransactionResponse } from './helpers/sendTransaction'
+import { checkAndExecuteReBalance } from './core/reBalance'
 
 /* eslint-disable no-redeclare */
 function executeUxdTransaction(
@@ -49,7 +50,6 @@ const main = async () => {
   const getOrderbookSide = await subscribeToMangoAsks()
 
   const priceDiffs = initPriceDiffsMAs()
-
   // -------------
   // MAIN BOT LOOP
   while (true) {
@@ -59,17 +59,27 @@ const main = async () => {
       priceDiffsMAs: priceDiffs,
       getOrderbookSide,
     })
-
+    console.log({ arbOpportunity })
     if (!arbOpportunity) {
       continue
     }
 
-    const { inputAmountUi, direction } = arbOpportunity
-    console.log(`Starting ${direction} arbitrage with: ${inputAmountUi} UXD`)
+    const { inputAmountUi: maxInputAmountUi, direction } = arbOpportunity
+    const preArbUxdBalanceRaw = await getUxdBalanceRaw()
+    const inputAmountUi = maxInputAmountUi > preArbUxdBalanceRaw
+      ? preArbUxdBalanceRaw
+      : maxInputAmountUi
+
+    console.log(
+      `Starting ${direction} arbitrage:\n Suggested input: ${
+        maxInputAmountUi
+      } UXD\n Real input: ${
+        maxInputAmountUi
+      } UXD`,
+    )
+
     switch (direction) {
       case Directions.MINT: {
-        const preArbUxdBalanceRaw = await getUxdBalanceRaw()
-
         // Execute swap
         await (async () => {
           const swapParams = {
@@ -118,6 +128,7 @@ const main = async () => {
           })
         })()
 
+        // Get balance and log result
         let postArbUxdBalanceRaw = await getUxdBalanceRaw()
         while (postArbUxdBalanceRaw < postMintUxdBalanceRaw) {
           await setTimeout(1000)
@@ -131,13 +142,13 @@ const main = async () => {
             toUi(postArbUxdBalanceRaw, Decimals.USD)
           }`,
         )
+
+        await checkAndExecuteReBalance(toUi(postArbUxdBalanceRaw, Decimals.USD), jupiter)
         break
       }
       case Directions.REDEMPTION: {
-        const preArbUxdBalanceRaw = await getUxdBalanceRaw()
-
         // Redeem
-        const response = await executeUxdTransaction(
+        const redeemResponse = await executeUxdTransaction(
           () => buildRedeemRawTransaction(inputAmountUi, uxdClient),
           async () => {
             const priceDiff = await getRedemptionPriceDifference({
@@ -150,13 +161,13 @@ const main = async () => {
             return priceDiff > config.minPriceDiff
           },
         )
-        if (!response) {
+        if (!redeemResponse) {
           console.log('Aborting redemption')
           break
         }
 
-        const { uxdRawAmount: preSwapUxdBalanceRaw } = response.data
-        const redeemedAmountRaw = response.data.solRawDifference + 5000
+        const { uxdRawAmount: preSwapUxdBalanceRaw } = redeemResponse.data
+        const redeemedAmountRaw = redeemResponse.data.solRawDifference + 5000
 
         // Swap back to USD
         let postArbUxdBalanceRaw = await (async () => {
@@ -183,6 +194,7 @@ const main = async () => {
           return null
         })()
 
+        // Get balance and log result
         while (!postArbUxdBalanceRaw || postArbUxdBalanceRaw <= preSwapUxdBalanceRaw) {
           postArbUxdBalanceRaw = await getUxdBalanceRaw()
           await setTimeout(1000)
@@ -195,6 +207,8 @@ const main = async () => {
             toUi(postArbUxdBalanceRaw, Decimals.USD)
           }`,
         )
+
+        await checkAndExecuteReBalance(toUi(postArbUxdBalanceRaw, Decimals.USD), jupiter)
         break
       }
       default: throw Error(`Unknown arb direction: ${direction}`)

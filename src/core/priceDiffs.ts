@@ -157,7 +157,8 @@ export const updatePriceDiffsAndFindArb = async ({
   priceDiffsMAs,
 }: UpdatePriceDiffsAndFindArb) => {
   // Fetch Jupiter cache update
-  let highestArbAmount: ArbOpportunity | null = await (async () => {
+  // TODO: LOG highest price diff
+  let arbOpportunity: ArbOpportunity | null = await (async () => {
     const { inputAmount } = priceDiffsMAs[0]
     const redemptionPriceDiff = await getRedemptionPriceDifference({
       jupiter,
@@ -213,12 +214,12 @@ export const updatePriceDiffsAndFindArb = async ({
     )
 
     if (arbDirection) {
-      highestArbAmount = {
+      arbOpportunity = {
         inputAmountUi: inputAmount,
         direction: arbDirection,
       }
     }
   }
 
-  return highestArbAmount
+  return arbOpportunity
 }

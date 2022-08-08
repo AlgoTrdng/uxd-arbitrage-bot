@@ -18,11 +18,11 @@ SOL_PRIVATE_KEY=solana private key byte array as string
 ### Set app config in `app.config.json`
 
 - Development config is used with
-  - `npm run pm2:dev`
-  - `npm run start:dev`
+  - `npm run pm2:development`
+  - `npm run start:development`
 - Production config is used with
-  - `npm run pm2:prod`
-  - `npm run start:prod`
+  - `npm run pm2:production`
+  - `npm run start:production`
 
 </br>
 
