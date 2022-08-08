@@ -36,5 +36,6 @@ module.exports = {
     'no-unused-vars': 'warn',
     'no-empty-function': 0,
     'no-continue': 0,
+    'import/no-unresolved': 0,
   },
 }

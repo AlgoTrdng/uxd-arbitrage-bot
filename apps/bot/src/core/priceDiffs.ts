@@ -5,10 +5,9 @@ import { Decimals } from '../constants'
 import { floor, toRaw, toUi } from '../helpers/amount'
 import {
   fetchBestJupiterRoute,
-  Direction,
   Directions,
 } from './jupiter'
-import { Orderbook, OrderbookSide, OrderbookSideGetter } from './uxd/mango'
+import { Orderbook, OrderbookSideGetter } from './uxd/mango'
 import { simulateMint, simulateRedemption } from './uxd/simulateSwap'
 
 const MA_LENGTH = 20

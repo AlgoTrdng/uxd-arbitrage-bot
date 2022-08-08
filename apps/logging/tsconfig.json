@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@bot/": ["../bot/src/"],
+      "@bot/*": ["../bot/src/*"]
+    }
+  },
+  "references": [
+    { "path": "../bot" }
+  ]
+}

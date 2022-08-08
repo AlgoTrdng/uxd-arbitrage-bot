@@ -30,8 +30,5 @@
     "jsbi": "^4.3.0",
     "node-fetch": "2",
     "zod": "^3.17.10"
-  },
-  "workspaces": [
-    "apps/*"
-  ]
+  }
 }
