@@ -70,16 +70,19 @@ const main = async () => {
     }
 
     const { inputAmountUi: maxInputAmountUi, direction } = arbConfig.arbOpportunity
+
     const preArbUxdBalanceRaw = await getUxdBalanceRaw()
-    const inputAmountUi = maxInputAmountUi > preArbUxdBalanceRaw
-      ? preArbUxdBalanceRaw
+    const preArbUxdBalanceUi = toUi(preArbUxdBalanceRaw, Decimals.USD)
+
+    const inputAmountUi = maxInputAmountUi > preArbUxdBalanceUi
+      ? preArbUxdBalanceUi - 1
       : maxInputAmountUi
 
     console.log(
       `Starting ${direction} arbitrage:\n Suggested input: ${
         maxInputAmountUi
       } UXD\n Real input: ${
-        maxInputAmountUi
+        inputAmountUi
       } UXD`,
     )
 
@@ -163,7 +166,7 @@ const main = async () => {
               forceFetch: true,
             })
             console.log({ redeemFailPriceDiff: priceDiff })
-            return priceDiff > config.minPriceDiff
+            return config.minPriceDiff > priceDiff
           },
         )
         if (!redeemResponse) {

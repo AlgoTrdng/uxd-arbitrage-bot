@@ -163,7 +163,6 @@ export const updatePriceDiffsAndFindArb = async ({
 
     const direction = redemptionPriceDiff > mintPriceDiff ? Directions.REDEMPTION : Directions.MINT
     const priceDiffMA = priceDiffsMAs[i][direction].ma
-
     if (!priceDiffMA || priceDiffMA < config.minMaPriceDiff) {
       return null
     }
@@ -181,10 +180,13 @@ export const updatePriceDiffsAndFindArb = async ({
     }
   }
 
-  let arbConfig: Awaited<ReturnType<typeof execute>> = null
+  let highestArbConfig: Awaited<ReturnType<typeof execute>> = null
   for (let i = 0; i < priceDiffsMAs.length; i += 1) {
-    arbConfig = await execute(i, i === 0)
+    const arbConfig = await execute(i, i === 0)
+    if (arbConfig) {
+      highestArbConfig = arbConfig
+    }
   }
 
-  return arbConfig
+  return highestArbConfig
 }
