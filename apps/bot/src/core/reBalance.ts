@@ -1,14 +1,23 @@
 import { Jupiter } from '@jup-ag/core'
+import { TextChannel } from 'discord.js'
 import JSBI from 'jsbi'
 
 import { config } from '../config'
 import { Decimals, USDC_MINT, UXD_MINT } from '../constants'
-import { toRaw } from '../helpers/amount'
+import { round, toRaw, toUi } from '../helpers/amount'
+import { sendReBalanceMessage } from '../logging/discord'
 
-export const checkAndExecuteReBalance = async (
-  uxdBalanceUi: number,
-  jupiter: Jupiter,
-) => {
+type CheckAndExecuteReBalanceParams = {
+  uxdBalanceUi: number
+  discordChannel: TextChannel
+  jupiter: Jupiter
+}
+
+export const checkAndExecuteReBalance = async ({
+  uxdBalanceUi,
+  discordChannel,
+  jupiter,
+}: CheckAndExecuteReBalanceParams) => {
   if (uxdBalanceUi <= config.maxUxdAmountUi + 1) {
     return
   }
@@ -34,5 +43,11 @@ export const checkAndExecuteReBalance = async (
     return
   }
 
+  const swapInputAmountUi = toUi(swapResult.inputAmount, Decimals.USD)
+  await sendReBalanceMessage({
+    channel: discordChannel,
+    oldAmount: round(uxdBalanceUi, 2),
+    newAmount: round(uxdBalanceUi - swapInputAmountUi, 2),
+  })
   console.log(`Successfully re-balanced ${swapAmountUi} UXD to USDC`)
 }

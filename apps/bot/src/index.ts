@@ -276,7 +276,11 @@ const main = async () => {
       }),
     ])
 
-    await checkAndExecuteReBalance(postArbUxdAmountUi, jupiter)
+    await checkAndExecuteReBalance({
+      uxdBalanceUi: postArbUxdAmountUi,
+      jupiter,
+      discordChannel,
+    })
   }
 }
 
