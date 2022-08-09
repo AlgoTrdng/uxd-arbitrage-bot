@@ -8,5 +8,7 @@
     "skipLibCheck": true,
     "types": ["node"],
     "resolveJsonModule": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
   }
 }

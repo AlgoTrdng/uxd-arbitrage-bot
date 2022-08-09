@@ -1,7 +1,37 @@
 {
+  "name": "uxd-arb-bot",
   "author": "dmc0125",
   "license": "MIT",
-  "workspaces": [
-    "apps/*"
-  ]
+  "version": "1.1.6",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "build:w": "rm -rf dist && tsc -w",
+    "start:dev": "APP_ENV=development node dist/index.js",
+    "start:prod": "APP_ENV=production node dist/index.js",
+    "pm2:dev": "APP_ENV=development pm2 start pm2.config.js",
+    "pm2:prod": "APP_ENV=production pm2 start pm2.config.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.3",
+    "@types/node-fetch": "^2.6.2",
+    "@typescript-eslint/eslint-plugin": "^5.23.0",
+    "@typescript-eslint/parser": "^5.23.0",
+    "eslint": "^8.15.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "typescript": "^4.6.4"
+  },
+  "dependencies": {
+    "@blockworks-foundation/mango-client": "3.6.10",
+    "@jup-ag/core": "2.0.0-beta.3",
+    "@solana/spl-token": "^0.2.0",
+    "@solana/web3.js": "1.47.3",
+    "@uxd-protocol/uxd-client": "^3.0.0",
+    "discord.js": "^14.1.2",
+    "dotenv": "^16.0.1",
+    "firebase-admin": "^11.0.0",
+    "jsbi": "^4.3.0",
+    "node-fetch": "2",
+    "zod": "^3.17.10"
+  }
 }

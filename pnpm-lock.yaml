@@ -3,7 +3,47 @@ lockfileVersion: 5.4
 importers:
 
   .:
-    specifiers: {}
+    specifiers:
+      '@blockworks-foundation/mango-client': 3.6.10
+      '@jup-ag/core': 2.0.0-beta.3
+      '@solana/spl-token': ^0.2.0
+      '@solana/web3.js': 1.47.3
+      '@types/node': ^18.0.3
+      '@types/node-fetch': ^2.6.2
+      '@typescript-eslint/eslint-plugin': ^5.23.0
+      '@typescript-eslint/parser': ^5.23.0
+      '@uxd-protocol/uxd-client': ^3.0.0
+      discord.js: ^14.1.2
+      dotenv: ^16.0.1
+      eslint: ^8.15.0
+      eslint-config-airbnb-base: ^15.0.0
+      eslint-plugin-import: ^2.26.0
+      firebase-admin: ^11.0.0
+      jsbi: ^4.3.0
+      node-fetch: '2'
+      typescript: ^4.6.4
+      zod: ^3.17.10
+    dependencies:
+      '@blockworks-foundation/mango-client': 3.6.10_react-native@0.69.4
+      '@jup-ag/core': 2.0.0-beta.3_dljtpags66kubadbynavk7t4rm
+      '@solana/spl-token': 0.2.0_react-native@0.69.4
+      '@solana/web3.js': 1.47.3
+      '@uxd-protocol/uxd-client': 3.0.0_react-native@0.69.4
+      discord.js: 14.1.2
+      dotenv: 16.0.1
+      firebase-admin: 11.0.1_@firebase+app-types@0.7.0
+      jsbi: 4.3.0
+      node-fetch: 2.6.7
+      zod: 3.17.10
+    devDependencies:
+      '@types/node': 18.6.4
+      '@types/node-fetch': 2.6.2
+      '@typescript-eslint/eslint-plugin': 5.32.0_iosr3hrei2tubxveewluhu5lhy
+      '@typescript-eslint/parser': 5.32.0_qugx7qdu5zevzvxaiqyxfiwquq
+      eslint: 8.21.0
+      eslint-config-airbnb-base: 15.0.0_jatgrcxl4x7ywe7ak6cnjca2ae
+      eslint-plugin-import: 2.26.0_wuikv5nqgdfyng42xxm7lklfmi
+      typescript: 4.7.4
 
   apps/bot:
     specifiers:
