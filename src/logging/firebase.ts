@@ -38,6 +38,10 @@ export const saveArbResult = async ({
   profitBps,
   direction,
 }: ArbResultParams) => {
+  if (profitBps === 0) {
+    return
+  }
+
   const executedAt = new Date()
   const docRef = database.doc(
     `${secrets.FB_COLLECTION_NAME}/${executedAt.getTime().toString()}`,

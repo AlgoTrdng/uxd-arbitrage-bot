@@ -11,8 +11,17 @@ pnpm i
 ### Set env variables in `.env`
 
 ```env
-SOL_RPC_ENDPOINT=solana RPC endpoint url
+SOL_RPC_ENDPOINT=
 SOL_PRIVATE_KEY=solana private key byte array as string
+
+DISCORD_CHANNEL_ID=
+DISCORD_SECRET=
+
+# Firebase config
+FB_PRIVATE_KEY=
+FB_PROJECT_ID=
+FB_CLIENT_EMAIL=
+FB_COLLECTION_NAME=
 ```
 
 ### Set app config in `app.config.json`

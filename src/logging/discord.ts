@@ -1,4 +1,9 @@
-import { Client, EmbedBuilder, TextChannel } from 'discord.js'
+import {
+  ActivityType,
+  Client,
+  EmbedBuilder,
+  TextChannel,
+} from 'discord.js'
 
 import { Direction } from '../core/jupiter'
 import { secrets } from '../config'
@@ -17,7 +22,10 @@ export const initDiscord = async () => {
   await channel.send(
     '🤖 Arbitrage bot started, scanning for arbitrage and listening for updates.',
   )
-  return channel
+  return {
+    client,
+    channel,
+  }
 }
 
 const createInlineField = (name: string, value: string) => ({
@@ -44,8 +52,8 @@ export const sendArbResultMessage = async ({
   const profitPercentage = round(profitBps * 100, 2)
 
   const embed = new EmbedBuilder({
-    color: profitBps > 0 ? 0x78EA4A : 0xEB5757,
-    title: `Executed **${direction}** arbitrage`,
+    color: profitBps >= 0 ? 0x78EA4A : 0xEB5757,
+    description: `Executed **${direction}** arbitrage`,
     fields: [
       createInlineField('Old amount', `UXD ${oldAmount}`),
       createInlineField('New amount', `UXD ${newAmount}`),
@@ -71,7 +79,7 @@ export const sendReBalanceMessage = async ({
 }: ReBalanceMessageParams) => {
   const embed = new EmbedBuilder({
     color: 0xffaa2b,
-    title: 'Successfully swapped UXD to USDC',
+    description: 'Successfully swapped UXD to USDC',
     fields: [
       createInlineField('Old amount', `UXD ${oldAmount}`),
       createInlineField('New amount', `UXD ${newAmount}`),
@@ -81,4 +89,12 @@ export const sendReBalanceMessage = async ({
   await channel.send({
     embeds: [embed],
   })
+}
+
+export const setActivity = (client: Client, arbDirection?: Direction) => {
+  if (!arbDirection) {
+    client.user?.setActivity('markets', { type: ActivityType.Watching })
+  } else {
+    client.user?.setActivity(arbDirection, { type: ActivityType.Playing })
+  }
 }

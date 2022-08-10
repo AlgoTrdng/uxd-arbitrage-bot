@@ -23,8 +23,8 @@ import {
   SuccessResponse,
   TransactionResponse,
 } from './helpers/sendTransaction'
-import { checkAndExecuteReBalance } from './core/reBalance'
-import { initDiscord, sendArbResultMessage } from './logging/discord'
+import { checkAndExecuteSolReBalance, checkAndExecuteUxdReBalance } from './core/reBalance'
+import { initDiscord, sendArbResultMessage, setActivity } from './logging/discord'
 import { saveArbResult } from './logging/firebase'
 
 /* eslint-disable no-redeclare */
@@ -69,7 +69,8 @@ type ArbitrageResultError = {
 }
 
 const main = async () => {
-  const discordChannel = await initDiscord()
+  const { channel: discordChannel, client: discordClient } = await initDiscord()
+  setActivity(discordClient)
 
   const jupiter = await initJupiter()
   const uxdClient = await initUxdClient()
@@ -111,6 +112,7 @@ const main = async () => {
         inputAmountUi
       } UXD`,
     )
+    setActivity(discordClient, direction)
 
     // Execute arbitrage
     const arbResult = await (async (): Promise<ArbitrageResultError | ArbitrageResultSuccess> => {
@@ -199,7 +201,7 @@ const main = async () => {
           }
 
           const { uxdRawAmount: preSwapUxdBalanceRaw } = redeemResponse.data
-          const redeemedAmountRaw = redeemResponse.data.solRawDifference + 5000
+          const redeemedAmountRaw = redeemResponse.data.solRawDifference - 5000
 
           // Swap back to USD
           let postArbUxdBalanceRaw = await (async () => {
@@ -241,10 +243,14 @@ const main = async () => {
       }
     })()
 
+    setActivity(discordClient)
+
     if (!arbResult.success) {
       continue
     }
 
+    // ---------------
+    // Log arb results
     const { postArbUxdAmountRaw } = arbResult
     const postArbUxdAmountUi = toUi(postArbUxdAmountRaw, Decimals.USD)
 
@@ -274,13 +280,15 @@ const main = async () => {
         direction,
         profitBps,
       }),
+      (async () => {
+        await checkAndExecuteUxdReBalance({
+          uxdBalanceUi: postArbUxdAmountUi,
+          jupiter,
+          discordChannel,
+        })
+        await checkAndExecuteSolReBalance(jupiter)
+      })(),
     ])
-
-    await checkAndExecuteReBalance({
-      uxdBalanceUi: postArbUxdAmountUi,
-      jupiter,
-      discordChannel,
-    })
   }
 }
 

@@ -3,8 +3,8 @@
     "minPriceDiff": 0.05,
     "minMaPriceDiff": 0,
 
-    "maxUxdAmountUi": 95,
-    "minUxdAmountUi": 50,
+    "maxUxdAmountUi": 200,
+    "minUxdAmountUi": 100,
     "minSolAmountUi": 0.05
   },
   "production": {
