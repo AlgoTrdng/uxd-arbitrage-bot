@@ -22,6 +22,9 @@ FB_PRIVATE_KEY=
 FB_PROJECT_ID=
 FB_CLIENT_EMAIL=
 FB_COLLECTION_NAME=
+
+STATUS_API=
+STATUS_SECRET=
 ```
 
 ### Set app config in `app.config.json`
@@ -74,7 +77,3 @@ npm run start:dev
 ```sh
 npm run start:prod
 ```
-
-# TODO
-
-- Setup production and development configs in json file

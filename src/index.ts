@@ -26,6 +26,7 @@ import {
 import { checkAndExecuteSolReBalance, checkAndExecuteUxdReBalance } from './core/reBalance'
 import { initDiscord, sendArbResultMessage, setActivity } from './logging/discord'
 import { saveArbResult } from './logging/firebase'
+import { updateStatus } from './logging/status'
 
 /* eslint-disable no-redeclare */
 function executeUxdTransaction(
@@ -81,6 +82,8 @@ const main = async () => {
   // MAIN BOT LOOP
   while (true) {
     await setTimeout(10_000)
+    await updateStatus('ping')
+
     const arbConfig = await updatePriceDiffsAndFindArb({
       jupiter,
       priceDiffsMAs: priceDiffs,
@@ -113,6 +116,7 @@ const main = async () => {
       } UXD`,
     )
     setActivity(discordClient, direction)
+    await updateStatus('startArb')
 
     // Execute arbitrage
     const arbResult = await (async (): Promise<ArbitrageResultError | ArbitrageResultSuccess> => {
@@ -266,7 +270,17 @@ const main = async () => {
       } UXD`,
     )
 
+    const executeReBalances = async () => {
+      await checkAndExecuteUxdReBalance({
+        uxdBalanceUi: postArbUxdAmountUi,
+        jupiter,
+        discordChannel,
+      })
+      await checkAndExecuteSolReBalance(jupiter)
+    }
+
     await Promise.all([
+      updateStatus('ping'),
       sendArbResultMessage({
         channel: discordChannel,
         oldAmount: oldAmountRounded,
@@ -280,14 +294,7 @@ const main = async () => {
         direction,
         profitBps,
       }),
-      (async () => {
-        await checkAndExecuteUxdReBalance({
-          uxdBalanceUi: postArbUxdAmountUi,
-          jupiter,
-          discordChannel,
-        })
-        await checkAndExecuteSolReBalance(jupiter)
-      })(),
+      executeReBalances(),
     ])
   }
 }
