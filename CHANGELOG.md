@@ -3,6 +3,12 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [2.0.0] - 11.8.2022
+
+- Rewrite v2
+- Multiple price diff levels
+- Price diffs averages
+
 ## [1.1.6] - 23.7.2022
 
 - Bugfix: Recreating redeem and mint tx after blockHeight expires
