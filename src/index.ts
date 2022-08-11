@@ -134,8 +134,8 @@ const main = async () => {
             while (!swapResult) {
               await setTimeout(1000)
 
-              const postSwapBalance = await getUxdBalanceRaw()
-              if (postSwapBalance < preArbUxdAmountRaw) {
+              const postSwapSolBalance = await getSolBalanceRaw()
+              if (postSwapSolBalance > config.minSolAmountRaw + 20_000_000) {
                 break
               }
 
