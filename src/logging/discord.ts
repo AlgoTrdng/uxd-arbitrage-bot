@@ -9,6 +9,14 @@ import { Direction } from '../core/jupiter'
 import { secrets } from '../config'
 import { round } from '../helpers/amount'
 
+export const setActivity = (client: Client, arbDirection?: Direction) => {
+  if (!arbDirection) {
+    client.user?.setActivity('markets', { type: ActivityType.Watching })
+  } else {
+    client.user?.setActivity(arbDirection, { type: ActivityType.Playing })
+  }
+}
+
 export const initDiscord = async () => {
   const client = new Client({ intents: ['GuildMessages'] })
   await client.login(secrets.DISCORD_SECRET)
@@ -22,6 +30,8 @@ export const initDiscord = async () => {
   await channel.send(
     '🤖 Arbitrage bot started, scanning for arbitrage and listening for updates.',
   )
+  setActivity(client)
+
   return {
     client,
     channel,
@@ -89,12 +99,4 @@ export const sendReBalanceMessage = async ({
   await channel.send({
     embeds: [embed],
   })
-}
-
-export const setActivity = (client: Client, arbDirection?: Direction) => {
-  if (!arbDirection) {
-    client.user?.setActivity('markets', { type: ActivityType.Watching })
-  } else {
-    client.user?.setActivity(arbDirection, { type: ActivityType.Playing })
-  }
 }

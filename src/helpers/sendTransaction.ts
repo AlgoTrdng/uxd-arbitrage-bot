@@ -1,42 +1,53 @@
-import { ConfirmedTransactionMeta, SendOptions, Transaction } from '@solana/web3.js'
+import {
+  ConfirmedTransactionMeta,
+  SendOptions,
+  TokenBalance,
+  Transaction,
+} from '@solana/web3.js'
 import { setTimeout } from 'timers/promises'
 
-import { connection } from '../config'
+import { connection, walletKeypair } from '../config'
 import { UXD_MINT } from '../constants'
 
 const MAX_CONFIRMATION_TIME = 120_000
 
-const parseTransactionMeta = (transactionMeta: ConfirmedTransactionMeta) => {
+const findTokenAmountInfo = (
+  tokenAmountInfos: TokenBalance[],
+) => (
+  tokenAmountInfos.find(({ owner, mint }) => (
+    owner === walletKeypair.publicKey.toString() && mint === UXD_MINT.toString()
+  ))!
+)
+
+export type ParsedTransactionMeta = {
+  postUxdAmountRaw: number
+  uxdSwapAmountRaw: number
+  solSwapAmountRaw: number
+}
+
+export const parseTransactionMeta = (meta: ConfirmedTransactionMeta): ParsedTransactionMeta => {
   const {
-    postBalances,
-    preBalances,
     preTokenBalances,
     postTokenBalances,
-  } = transactionMeta
-  const solRawAmount = postBalances[0]
+    preBalances,
+    postBalances,
+  } = meta
 
-  // -----------------
-  // GET POST BALANCES
-  // postTokenBalances is always defined because if transaction fails `sendAndAwaitTransaction`
-  // returns before calling `getTransactionData`
-  // uxd balances is always defined because transaction swaps UXD for SOL
-  const postUxdBalance = postTokenBalances!
-    .find(({ mint: mintAddress }) => mintAddress === UXD_MINT.toString())!
-
-  // ---------------------
-  // GET TOKEN DIFFERENCES
-  const preUxdBalance = preTokenBalances!
-    .find(({ mint: mintAddress }) => mintAddress === UXD_MINT.toString())!
-  const uxdRawDifference = Math.abs(
-    Number(preUxdBalance.uiTokenAmount.amount) - Number(postUxdBalance.uiTokenAmount.amount),
+  const { uiTokenAmount: preUxdAmountInfo } = findTokenAmountInfo(preTokenBalances!)
+  const { uiTokenAmount: postUxdAmountInfo } = findTokenAmountInfo(
+    postTokenBalances!,
   )
-  const solRawDifference = Math.abs(preBalances[0] - postBalances[0])
+
+  const preUxdAmountRaw = Number(preUxdAmountInfo.amount)
+  const postUxdAmountRaw = Number(postUxdAmountInfo.amount)
+
+  const uxdSwapAmountRaw = Math.abs(preUxdAmountRaw - postUxdAmountRaw)
+  const solSwapAmountRaw = Math.abs(preBalances[0] - postBalances[0]) - 5000 // Tx fee
 
   return {
-    solRawAmount,
-    solRawDifference,
-    uxdRawDifference,
-    uxdRawAmount: Number(postUxdBalance.uiTokenAmount.amount),
+    postUxdAmountRaw,
+    uxdSwapAmountRaw,
+    solSwapAmountRaw,
   }
 }
 
@@ -96,7 +107,7 @@ const watchBlockHeight = async (
 
 export type SuccessResponse = {
   success: true
-  data: ReturnType<typeof parseTransactionMeta>
+  data: ConfirmedTransactionMeta
 }
 
 export type ErrorResponse = {
@@ -123,21 +134,16 @@ export const sendAndConfirmTransaction = async (
   ])
   abortController.abort()
 
-  if (response === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
-    return {
-      success: false,
-      err: TransactionResponse.BLOCK_HEIGHT_EXCEEDED,
-    }
-  }
+  const blockHeightErr = TransactionResponse.BLOCK_HEIGHT_EXCEEDED
   if (typeof response === 'string') {
     return {
       success: false,
-      err: null,
+      err: response === blockHeightErr ? blockHeightErr : null,
     }
   }
 
   return {
     success: true,
-    data: parseTransactionMeta(response),
+    data: response,
   }
 }

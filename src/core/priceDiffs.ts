@@ -98,7 +98,7 @@ export const getRedemptionPriceDifference = async ({
  * UXD to SOL on Jupiter
  * SOL to UXD on Mango
  */
-const getMintPriceDifference = async ({
+export const getMintPriceDifference = async ({
   jupiter,
   inputAmountUi,
   orderbook,

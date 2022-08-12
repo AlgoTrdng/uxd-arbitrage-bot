@@ -4,7 +4,10 @@ import {
   createSyncNativeInstruction,
 } from '@solana/spl-token'
 import {
-  PublicKey, SystemProgram, Transaction, TransactionInstruction,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
 } from '@solana/web3.js'
 import {
   Controller,
@@ -17,11 +20,18 @@ import {
   UXD_DECIMALS,
   WSOL,
 } from '@uxd-protocol/uxd-client'
+import { setTimeout } from 'timers/promises'
 
 import { connection, walletKeypair } from '../../config'
 import { Decimals } from '../../constants'
 import { toRaw } from '../../helpers/amount'
 import { forceOnError } from '../../helpers/forceOnError'
+import {
+  TransactionResponse,
+  sendAndConfirmTransaction,
+  parseTransactionMeta,
+  ParsedTransactionMeta,
+} from '../../helpers/sendTransaction'
 
 export const initUxdClient = async () => {
   const UXD_PROGRAM_ID = new PublicKey('UXD8m9cvwk4RcSxnX2HZ9VudQCEeDH6fRnB4CAP57Dr')
@@ -174,3 +184,38 @@ export const buildRedeemRawTransaction = async (
 
   return buildAndSignRawTransaction(instructions)
 }
+
+type BuildTransactionFn = () => Promise<Transaction>
+type ShouldAbortFn = () => Promise<boolean>
+
+/* eslint-disable no-redeclare, no-unused-vars */
+export function executeUxdTransaction(
+  buildTransaction: BuildTransactionFn,
+): Promise<ParsedTransactionMeta>
+export function executeUxdTransaction(
+  buildTransaction: BuildTransactionFn,
+  shouldAbort?: ShouldAbortFn,
+): Promise<ParsedTransactionMeta | null>
+export async function executeUxdTransaction(
+  buildTransaction: BuildTransactionFn,
+  shouldAbort?: ShouldAbortFn,
+) {
+  let tx = await buildTransaction()
+
+  while (true) {
+    const res = await sendAndConfirmTransaction(tx)
+
+    if (res.success) {
+      return parseTransactionMeta(res.data)
+    }
+    if (res.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
+      await setTimeout(500)
+      if (shouldAbort && await shouldAbort()) {
+        return null
+      }
+
+      tx = await buildTransaction()
+    }
+  }
+}
+/* eslint-enable no-redeclare, no-unused-vars */

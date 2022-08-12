@@ -3,6 +3,10 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [2.0.1] - 12.8.2022
+
+- Getting UXD balance from TX response - fixes the old balances from fetching token balance
+
 ## [2.0.0] - 11.8.2022
 
 - Rewrite v2

@@ -1,88 +1,52 @@
 import { setTimeout } from 'timers/promises'
-import { Transaction } from '@solana/web3.js'
 
 import {
+  getMintPriceDifference,
   getRedemptionPriceDifference,
   initPriceDiffsMAs,
   updatePriceDiffsAndFindArb,
 } from './core/priceDiffs'
-import { Directions, fetchBestRouteAndExecuteSwap, initJupiter } from './core/jupiter'
+import { Directions, executeJupiterSwap, initJupiter } from './core/jupiter'
 import { subscribeToMangoAsks } from './core/uxd/mango'
-import {
-  floor,
-  toRaw,
-  toUi,
-} from './helpers/amount'
+import { toRaw, toUi } from './helpers/amount'
 import { Decimals } from './constants'
-import { getSolBalanceRaw, getUxdBalanceRaw } from './helpers/getBalance'
+import { getUxdBalanceRaw } from './helpers/getBalance'
 import { config } from './config'
-import { buildMintRawTransaction, buildRedeemRawTransaction, initUxdClient } from './core/uxd'
 import {
-  sendAndConfirmTransaction,
-  SuccessResponse,
-  TransactionResponse,
-} from './helpers/sendTransaction'
+  buildMintRawTransaction,
+  buildRedeemRawTransaction,
+  executeUxdTransaction,
+  initUxdClient,
+} from './core/uxd'
 import { checkAndExecuteSolReBalance, checkAndExecuteUxdReBalance } from './core/reBalance'
 import { initDiscord, setActivity } from './logging/discord'
 import { updateStatus } from './logging/status'
 import { logArbEnd, logArbStart } from './logging/helpers'
 
-/* eslint-disable no-redeclare, no-unused-vars */
-function executeUxdTransaction(
-  buildTransaction: () => Promise<Transaction>,
-): Promise<SuccessResponse>
-function executeUxdTransaction(
-  buildTransaction: () => Promise<Transaction>,
-  shouldAbort: () => boolean | Promise<boolean>,
-): Promise<SuccessResponse | null>
-async function executeUxdTransaction(
-  buildTransaction: () => Promise<Transaction>,
-  shouldAbort?: () => boolean | Promise<boolean>,
-) {
-  let mintTransaction = await buildTransaction()
-  let response = await sendAndConfirmTransaction(mintTransaction)
-
-  while (!response.success) {
-    if (shouldAbort && await shouldAbort()) {
-      return null
-    }
-
-    await setTimeout(500)
-
-    if (response.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
-      mintTransaction = await buildTransaction()
-    }
-    response = await sendAndConfirmTransaction(mintTransaction)
-  }
-
-  return response
-}
-/* eslint-enable no-redeclare, no-unused-vars */
-
-type ArbitrageResultSuccess = {
+type ArbResultSuccess = {
   success: true
-  postArbUxdAmountRaw: number
+  postArbUxdBalanceRaw: number
 }
 
-type ArbitrageResultError = {
+type ArbResultAborted = {
   success: false
 }
 
 const main = async () => {
   const { channel: discordChannel, client: discordClient } = await initDiscord()
-  setActivity(discordClient)
 
   const jupiter = await initJupiter()
   const uxdClient = await initUxdClient()
   const getOrderbookSide = await subscribeToMangoAsks()
 
   const priceDiffs = initPriceDiffsMAs()
-  // -------------
-  // MAIN BOT LOOP
+
+  let uxdBalanceRaw = await getUxdBalanceRaw()
   while (true) {
     await setTimeout(10_000)
-    await updateStatus('ping')
+    updateStatus('ping')
 
+    // Check pride differences and get arb config
     const arbConfig = await updatePriceDiffsAndFindArb({
       jupiter,
       priceDiffsMAs: priceDiffs,
@@ -98,13 +62,10 @@ const main = async () => {
       continue
     }
 
+    const uxdBalanceUi = toUi(uxdBalanceRaw, Decimals.USD)
     const { inputAmountUi: maxInputAmountUi, direction } = arbConfig.arbOpportunity
-
-    const preArbUxdAmountRaw = await getUxdBalanceRaw()
-    const preArbUxdAmountUi = toUi(preArbUxdAmountRaw, Decimals.USD)
-
-    const inputAmountUi = maxInputAmountUi > preArbUxdAmountUi
-      ? preArbUxdAmountUi - 1
+    const inputAmountUi = maxInputAmountUi > uxdBalanceUi
+      ? uxdBalanceUi - 1
       : maxInputAmountUi
 
     await logArbStart({
@@ -114,129 +75,68 @@ const main = async () => {
       direction,
     })
 
-    // Execute arbitrage
-    const arbResult = await (async (): Promise<ArbitrageResultError | ArbitrageResultSuccess> => {
+    const arbResult = await (async (): Promise<ArbResultSuccess | ArbResultAborted> => {
       switch (direction) {
         case Directions.MINT: {
-          // Execute swap
-          await (async () => {
-            const swapParams = {
+          const swapResult = await executeJupiterSwap({
+            amountRaw: toRaw(inputAmountUi, Decimals.USD),
+            jupiter,
+            direction,
+          }, async () => {
+            const priceDiff = await getMintPriceDifference({
+              orderbook: getOrderbookSide('bids'),
+              forceFetch: true,
               jupiter,
-              direction,
-              amountRaw: toRaw(inputAmountUi, Decimals.USD),
-            }
-            let swapResult = await fetchBestRouteAndExecuteSwap(swapParams)
-
-            while (!swapResult) {
-              await setTimeout(1000)
-
-              const postSwapSolBalance = await getSolBalanceRaw()
-              if (postSwapSolBalance > config.minSolAmountRaw + 20_000_000) {
-                break
-              }
-
-              swapResult = await fetchBestRouteAndExecuteSwap(swapParams)
-            }
-          })()
-
-          // Get SOL input amount
-          let solBalanceRaw = await getSolBalanceRaw()
-          while (solBalanceRaw <= config.minSolAmountRaw) {
-            await setTimeout(500)
-            solBalanceRaw = await getSolBalanceRaw()
-          }
-          const solInputAmountUi = toUi(solBalanceRaw - config.minSolAmountRaw, Decimals.SOL)
-          const realInputAmountUi = floor(solInputAmountUi, 2)
-
-          // Mint UXD
-          const postMintUxdBalanceRaw = await (async () => {
-            const response = await executeUxdTransaction(
-              () => buildMintRawTransaction(realInputAmountUi, uxdClient),
-            )
-            return response.data.uxdRawAmount
-          })()
-
-          // Swap remaining SOL
-          await (async () => {
-            const remainingSolAmountUi = solInputAmountUi - realInputAmountUi
-            await fetchBestRouteAndExecuteSwap({
-              jupiter,
-              direction: Directions.REDEMPTION,
-              amountRaw: toRaw(remainingSolAmountUi, Decimals.SOL),
+              inputAmountUi,
             })
-          })()
+            console.log({ mintFailPriceDiff: priceDiff })
+            return config.minPriceDiff > priceDiff
+          })
 
-          // Get post arb balance
-          let postArbUxdBalanceRaw = await getUxdBalanceRaw()
-          while (postArbUxdBalanceRaw < postMintUxdBalanceRaw) {
-            await setTimeout(1000)
-            postArbUxdBalanceRaw = await getUxdBalanceRaw()
-          }
-
-          return {
-            success: true,
-            postArbUxdAmountRaw: postArbUxdBalanceRaw,
-          }
-        }
-        case Directions.REDEMPTION: {
-          // Redeem
-          const redeemResponse = await executeUxdTransaction(
-            () => buildRedeemRawTransaction(inputAmountUi, uxdClient),
-            async () => {
-              const priceDiff = await getRedemptionPriceDifference({
-                jupiter,
-                inputAmountUi,
-                orderbook: getOrderbookSide('asks'),
-                forceFetch: true,
-              })
-              console.log({ redeemFailPriceDiff: priceDiff })
-              return config.minPriceDiff > priceDiff
-            },
-          )
-          if (!redeemResponse) {
-            console.log('Aborting redemption')
+          if (!swapResult) {
             return {
               success: false,
             }
           }
 
-          const { uxdRawAmount: preSwapUxdBalanceRaw } = redeemResponse.data
-          const redeemedAmountRaw = redeemResponse.data.solRawDifference - 5000
-
-          // Swap back to USD
-          let postArbUxdBalanceRaw = await (async () => {
-            const swapParams = {
-              jupiter,
-              direction,
-              amountRaw: redeemedAmountRaw,
-            }
-            let swapResult = await fetchBestRouteAndExecuteSwap(swapParams)
-
-            while (!swapResult) {
-              await setTimeout(500)
-
-              const uxdBalance = await getUxdBalanceRaw()
-              if (uxdBalance > preSwapUxdBalanceRaw) {
-                // If current balance is higher then pre-swap balance,
-                // swap was a success
-                return uxdBalance
-              }
-
-              swapResult = await fetchBestRouteAndExecuteSwap(swapParams)
-            }
-
-            return null
-          })()
-
-          // Get post arb balance
-          while (!postArbUxdBalanceRaw || postArbUxdBalanceRaw <= preSwapUxdBalanceRaw) {
-            postArbUxdBalanceRaw = await getUxdBalanceRaw()
-            await setTimeout(1000)
-          }
+          const mintResult = await executeUxdTransaction(() => (
+            buildMintRawTransaction(toUi(swapResult.solSwapAmountRaw, Decimals.SOL), uxdClient)
+          ))
 
           return {
             success: true,
-            postArbUxdAmountRaw: postArbUxdBalanceRaw,
+            postArbUxdBalanceRaw: mintResult.postUxdAmountRaw,
+          }
+        }
+        case Directions.REDEMPTION: {
+          const redeemResult = await executeUxdTransaction(() => (
+            buildRedeemRawTransaction(inputAmountUi, uxdClient)
+          ), async () => {
+            const priceDiff = await getRedemptionPriceDifference({
+              orderbook: getOrderbookSide('asks'),
+              forceFetch: true,
+              jupiter,
+              inputAmountUi,
+            })
+            console.log({ redeemFailPriceDiff: priceDiff })
+            return config.minPriceDiff > priceDiff
+          })
+
+          if (!redeemResult) {
+            return {
+              success: false,
+            }
+          }
+
+          const swapResult = await executeJupiterSwap({
+            amountRaw: redeemResult.solSwapAmountRaw,
+            jupiter,
+            direction,
+          })
+
+          return {
+            success: true,
+            postArbUxdBalanceRaw: swapResult.postUxdAmountRaw,
           }
         }
         default: throw Error(`Unknown arb direction: ${direction}`)
@@ -248,15 +148,15 @@ const main = async () => {
     if (!arbResult.success) {
       continue
     }
-
+    uxdBalanceRaw = arbResult.postArbUxdBalanceRaw
     // ---------------
     // Log arb results
-    const { postArbUxdAmountRaw } = arbResult
-    const postArbUxdAmountUi = toUi(postArbUxdAmountRaw, Decimals.USD)
+    const { postArbUxdBalanceRaw } = arbResult
+    const postArbUxdBalanceUi = toUi(postArbUxdBalanceRaw, Decimals.USD)
 
     const executeReBalances = async () => {
       await checkAndExecuteUxdReBalance({
-        uxdBalanceUi: postArbUxdAmountUi,
+        uxdBalanceUi: postArbUxdBalanceUi,
         jupiter,
         discordChannel,
       })
@@ -265,8 +165,8 @@ const main = async () => {
 
     await Promise.all([
       logArbEnd({
-        preArbUxdBalanceUi: preArbUxdAmountUi,
-        postArbUxdBalanceUi: postArbUxdAmountUi,
+        preArbUxdBalanceUi: uxdBalanceUi,
+        postArbUxdBalanceUi,
         discordChannel,
         direction,
       }),

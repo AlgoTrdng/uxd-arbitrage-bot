@@ -1,4 +1,5 @@
 import fetch from 'node-fetch'
+
 import { secrets } from '../config'
 
 const STATUS_API_URL = `${secrets.STATUS_API}/status`

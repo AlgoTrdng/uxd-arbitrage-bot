@@ -1,9 +1,15 @@
-import { Jupiter, SwapMode } from '@jup-ag/core'
-import { PublicKey } from '@solana/web3.js'
+import { Jupiter } from '@jup-ag/core'
+import { ConfirmedTransactionMeta, PublicKey } from '@solana/web3.js'
 import JSBI from 'jsbi'
 
 import { connection, walletKeypair } from '../config'
 import { SOL_MINT, UXD_MINT } from '../constants'
+import {
+  ParsedTransactionMeta,
+  parseTransactionMeta,
+  sendAndConfirmTransaction,
+  TransactionResponse,
+} from '../helpers/sendTransaction'
 
 export const initJupiter = async () => (
   Jupiter.load({
@@ -61,31 +67,73 @@ export const fetchBestJupiterRoute = async ({
   return result.routesInfos[0]
 }
 
-export type SwapResult = {
-  txid: string
-  inputAddress: PublicKey
-  outputAddress: PublicKey
-  inputAmount: number
-  outputAmount: number
+type ExecuteJupiterSwapParams = {
+  jupiter: Jupiter
+  amountRaw: number
+  direction: Direction
 }
 
-export const fetchBestRouteAndExecuteSwap = async ({
-  jupiter,
-  direction,
-  amountRaw,
-}: Omit<FetchBestRouteParams, 'forceFetch'>) => {
+type AbortFn = () => Promise<boolean>
+
+/* eslint-disable no-redeclare, no-unused-vars */
+export function executeJupiterSwap(
+  { jupiter, direction, amountRaw }: ExecuteJupiterSwapParams,
+): Promise<ParsedTransactionMeta>
+export function executeJupiterSwap(
+  { jupiter, direction, amountRaw }: ExecuteJupiterSwapParams,
+  shouldAbort?: AbortFn,
+): Promise<ParsedTransactionMeta | null>
+export async function executeJupiterSwap(
+  { jupiter, direction, amountRaw }: ExecuteJupiterSwapParams,
+  shouldAbort?: AbortFn,
+) {
+  // Get txs
   const bestRoute = await fetchBestJupiterRoute({
     jupiter,
     amountRaw,
     direction,
     forceFetch: true,
   })
-  const { execute } = await jupiter.exchange({ routeInfo: bestRoute })
-  const swapResult = await execute()
+  const { transactions } = await jupiter.exchange({ routeInfo: bestRoute })
 
-  if ('txid' in swapResult) {
-    return swapResult as SwapResult
+  // Sign
+  Object.values(transactions).forEach((tx) => {
+    if (tx) {
+      tx.sign(walletKeypair)
+    }
+  })
+
+  // Execute
+  if (transactions.setupTransaction) {
+    await sendAndConfirmTransaction(transactions.setupTransaction)
   }
 
-  return null
+  let swapMeta: ConfirmedTransactionMeta | null = null
+  while (true) {
+    const res = await sendAndConfirmTransaction(transactions.swapTransaction)
+
+    if (res.success) {
+      swapMeta = res.data
+      break
+    }
+
+    if (res.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
+      if (shouldAbort && await shouldAbort()) {
+        return null
+      }
+
+      return executeJupiterSwap({
+        jupiter,
+        direction,
+        amountRaw,
+      }, shouldAbort)
+    }
+  }
+
+  if (transactions.cleanupTransaction) {
+    await sendAndConfirmTransaction(transactions.cleanupTransaction)
+  }
+
+  return parseTransactionMeta(swapMeta)
 }
+/* eslint-enable no-redeclare, no-unused-vars */
