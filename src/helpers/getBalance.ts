@@ -1,4 +1,4 @@
-import { AccountLayout, getAssociatedTokenAddress } from '@solana/spl-token'
+import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
 
 import { walletKeypair, connection } from '../config'
@@ -18,16 +18,10 @@ export const getUxdBalanceRaw = async () => {
     throw Error('Could not get UXD ATA')
   }
 
-  const accountInfo = await forceOnError(
-    () => connection.getAccountInfo(uxdATA!),
-    500,
+  const res = await forceOnError(
+    () => connection.getTokenAccountBalance(uxdATA!),
   )
-  if (!accountInfo) {
-    throw Error('Could not get UXD account info')
-  }
-
-  const decoded = AccountLayout.decode(accountInfo.data)
-  return Number(decoded.amount)
+  return Number(res.value.amount)
 }
 
 export const getSolBalanceRaw = async () => (

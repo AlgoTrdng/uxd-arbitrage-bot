@@ -10,7 +10,6 @@ import { Directions, fetchBestRouteAndExecuteSwap, initJupiter } from './core/ju
 import { subscribeToMangoAsks } from './core/uxd/mango'
 import {
   floor,
-  round,
   toRaw,
   toUi,
 } from './helpers/amount'
@@ -24,11 +23,11 @@ import {
   TransactionResponse,
 } from './helpers/sendTransaction'
 import { checkAndExecuteSolReBalance, checkAndExecuteUxdReBalance } from './core/reBalance'
-import { initDiscord, sendArbResultMessage, setActivity } from './logging/discord'
-import { saveArbResult } from './logging/firebase'
+import { initDiscord, setActivity } from './logging/discord'
 import { updateStatus } from './logging/status'
+import { logArbEnd, logArbStart } from './logging/helpers'
 
-/* eslint-disable no-redeclare */
+/* eslint-disable no-redeclare, no-unused-vars */
 function executeUxdTransaction(
   buildTransaction: () => Promise<Transaction>,
 ): Promise<SuccessResponse>
@@ -58,7 +57,7 @@ async function executeUxdTransaction(
 
   return response
 }
-/* eslint-enable no-redeclare */
+/* eslint-enable no-redeclare, no-unused-vars */
 
 type ArbitrageResultSuccess = {
   success: true
@@ -108,15 +107,12 @@ const main = async () => {
       ? preArbUxdAmountUi - 1
       : maxInputAmountUi
 
-    console.log(
-      `Starting ${direction} arbitrage. Suggested input: ${
-        maxInputAmountUi
-      } UXD, Real input: ${
-        inputAmountUi
-      } UXD`,
-    )
-    setActivity(discordClient, direction)
-    await updateStatus('startArb')
+    await logArbStart({
+      suggestedInputAmount: maxInputAmountUi,
+      realInputAmount: inputAmountUi,
+      discordClient,
+      direction,
+    })
 
     // Execute arbitrage
     const arbResult = await (async (): Promise<ArbitrageResultError | ArbitrageResultSuccess> => {
@@ -258,18 +254,6 @@ const main = async () => {
     const { postArbUxdAmountRaw } = arbResult
     const postArbUxdAmountUi = toUi(postArbUxdAmountRaw, Decimals.USD)
 
-    const oldAmountRounded = round(preArbUxdAmountUi, 2)
-    const newAmountRounded = round(postArbUxdAmountUi, 2)
-    const profitBps = round(newAmountRounded / oldAmountRounded - 1, 4)
-
-    console.log(
-      `Executed ${direction} arbitrage. PreArbBalance: ${
-        oldAmountRounded
-      } UXD, PostArbBalance: ${
-        newAmountRounded
-      } UXD`,
-    )
-
     const executeReBalances = async () => {
       await checkAndExecuteUxdReBalance({
         uxdBalanceUi: postArbUxdAmountUi,
@@ -280,19 +264,11 @@ const main = async () => {
     }
 
     await Promise.all([
-      updateStatus('ping'),
-      sendArbResultMessage({
-        channel: discordChannel,
-        oldAmount: oldAmountRounded,
-        newAmount: newAmountRounded,
+      logArbEnd({
+        preArbUxdBalanceUi: preArbUxdAmountUi,
+        postArbUxdBalanceUi: postArbUxdAmountUi,
+        discordChannel,
         direction,
-        profitBps,
-      }),
-      saveArbResult({
-        oldAmount: oldAmountRounded,
-        newAmount: newAmountRounded,
-        direction,
-        profitBps,
       }),
       executeReBalances(),
     ])

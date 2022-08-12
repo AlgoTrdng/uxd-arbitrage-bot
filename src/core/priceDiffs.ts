@@ -153,6 +153,19 @@ export const updatePriceDiffsAndFindArb = async ({
     priceDiffsMAs[i].redemption.addPriceDiff(redemptionPriceDiff)
     priceDiffsMAs[i].mint.addPriceDiff(mintPriceDiff)
 
+    if (i === 0) {
+      console.log({
+        redeem: {
+          c: redemptionPriceDiff,
+          ma: priceDiffsMAs[0].redemption.ma,
+        },
+        mint: {
+          c: mintPriceDiff,
+          ma: priceDiffsMAs[0].mint.ma,
+        },
+      })
+    }
+
     // Check if arb is possible
     const isHighPriceDiff = mintPriceDiff > config.minPriceDiff
       || redemptionPriceDiff > config.minPriceDiff

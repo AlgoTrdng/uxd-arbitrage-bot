@@ -3,7 +3,7 @@ import { secrets } from '../config'
 
 const STATUS_API_URL = `${secrets.STATUS_API}/status`
 
-export const updateStatus = async (type: 'ping' | 'startArb') => {
+export const updateStatus = async (type: 'ping' | 'startArb' | 'endArb') => {
   try {
     const appId = `UXD-arb_${process.env.APP_ENV === 'production' ? 'prod' : 'dev'}`
     await fetch(STATUS_API_URL, {
