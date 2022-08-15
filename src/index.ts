@@ -8,7 +8,7 @@ import {
 } from './core/priceDiffs'
 import { Directions, executeJupiterSwap, initJupiter } from './core/jupiter'
 import { subscribeToMangoAsks } from './core/uxd/mango'
-import { toRaw, toUi } from './helpers/amount'
+import { toRaw, toUi, floor } from './helpers/amount'
 import { Decimals } from './constants'
 import { getUxdBalanceRaw } from './helpers/getBalance'
 import { config } from './config'
@@ -22,6 +22,7 @@ import { checkAndExecuteSolReBalance, checkAndExecuteUxdReBalance } from './core
 import { initDiscord, setActivity } from './logging/discord'
 import { updateStatus } from './logging/status'
 import { logArbEnd, logArbStart } from './logging/helpers'
+import { ParsedTransactionMeta } from './helpers/sendTransaction'
 
 type ArbResultSuccess = {
   success: true
@@ -99,13 +100,28 @@ const main = async () => {
             }
           }
 
+          const swapOutputAmountUi = toUi(swapResult.solSwapAmountRaw, Decimals.SOL)
+          const mintInputAmountUi = floor(swapOutputAmountUi, 2)
+          const remainingAmountUi = swapOutputAmountUi - mintInputAmountUi
+
           const mintResult = await executeUxdTransaction(() => (
-            buildMintRawTransaction(toUi(swapResult.solSwapAmountRaw, Decimals.SOL), uxdClient)
+            buildMintRawTransaction(mintInputAmountUi, uxdClient)
           ))
 
+          let remainingSwapResult: ParsedTransactionMeta | null = null
+          if (remainingAmountUi > 0) {
+            remainingSwapResult = await executeJupiterSwap({
+              direction: Directions.REDEMPTION,
+              amountRaw: toRaw(remainingAmountUi, Decimals.SOL),
+              jupiter,
+            })
+          }
+
+          // eslint-disable-next-line max-len
+          const postArbUxdAmountRaw = remainingSwapResult?.postUxdAmountRaw || mintResult.postUxdAmountRaw
           return {
             success: true,
-            postArbUxdBalanceRaw: mintResult.postUxdAmountRaw,
+            postArbUxdBalanceRaw: postArbUxdAmountRaw,
           }
         }
         case Directions.REDEMPTION: {
@@ -170,6 +186,7 @@ const main = async () => {
         discordChannel,
         direction,
       }),
+      // TODO: Update uxd balance after rebalance
       executeReBalances(),
     ])
   }
