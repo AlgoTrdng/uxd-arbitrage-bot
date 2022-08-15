@@ -1,4 +1,4 @@
-import { Jupiter } from '@jup-ag/core'
+import { Jupiter, RouteInfo } from '@jup-ag/core'
 import { TextChannel } from 'discord.js'
 import JSBI from 'jsbi'
 
@@ -12,20 +12,51 @@ import {
 import { round, toRaw, toUi } from '../helpers/amount'
 import { sendReBalanceMessage } from '../logging/discord'
 import { getSolBalanceRaw } from '../helpers/getBalance'
+import { signJupiterTransactions } from './jupiter'
+import {
+  parseTransactionMeta,
+  sendAndConfirmTransaction,
+  TransactionResponse,
+} from '../helpers/transaction'
 
-type CheckAndExecuteReBalanceParams = {
+const tryExecuteJupiterSwap = async (jupiter: Jupiter, bestRoute: RouteInfo) => {
+  const { transactions } = await jupiter.exchange({ routeInfo: bestRoute })
+  signJupiterTransactions(transactions)
+
+  if (transactions.setupTransaction) {
+    await sendAndConfirmTransaction(transactions.setupTransaction)
+  }
+
+  while (true) {
+    const res = await sendAndConfirmTransaction(transactions.swapTransaction)
+    if (res.success) {
+      return parseTransactionMeta(res.data)
+    }
+    if (res.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
+      break
+    }
+  }
+
+  if (transactions.cleanupTransaction) {
+    await sendAndConfirmTransaction(transactions.cleanupTransaction)
+  }
+
+  return null
+}
+
+type UxdReBalanceParams = {
   uxdBalanceUi: number
   discordChannel: TextChannel
   jupiter: Jupiter
 }
 
-export const checkAndExecuteUxdReBalance = async ({
+export const tryExecuteUxdReBalance = async ({
   uxdBalanceUi,
   discordChannel,
   jupiter,
-}: CheckAndExecuteReBalanceParams) => {
+}: UxdReBalanceParams) => {
   if (uxdBalanceUi <= config.maxUxdAmountUi + 1) {
-    return
+    return null
   }
   console.log(`Executing re-balance. Balance: ${uxdBalanceUi} UXD, Threshold: ${config.maxUxdAmountUi + 1} UXD`)
 
@@ -38,31 +69,29 @@ export const checkAndExecuteUxdReBalance = async ({
     slippage: 0.5,
   })
   if (!routesInfos.length) {
-    return
+    return null
   }
 
-  const [bestRoute] = routesInfos
-  // No need to confirm, just retry after next arb
-  const { execute } = await jupiter.exchange({ routeInfo: bestRoute })
-  const swapResult = await execute()
-  if (!('txid' in swapResult)) {
-    return
+  const swapResult = await tryExecuteJupiterSwap(jupiter, routesInfos[0])
+
+  if (swapResult) {
+    const postSwapUxdAmountUi = toUi(swapResult.postUxdAmountRaw, Decimals.USD)
+    await sendReBalanceMessage({
+      channel: discordChannel,
+      oldAmount: uxdBalanceUi,
+      newAmount: postSwapUxdAmountUi,
+    })
+    console.log(`Successfully re-balanced ${swapAmountUi} UXD to USDC`)
   }
 
-  const swapInputAmountUi = toUi(swapResult.inputAmount, Decimals.USD)
-  await sendReBalanceMessage({
-    channel: discordChannel,
-    oldAmount: round(uxdBalanceUi, 2),
-    newAmount: round(uxdBalanceUi - swapInputAmountUi, 2),
-  })
-  console.log(`Successfully re-balanced ${swapAmountUi} UXD to USDC`)
+  return swapResult?.postUxdAmountRaw || null
 }
 
-export const checkAndExecuteSolReBalance = async (jupiter: Jupiter) => {
+export const tryExecuteSolReBalance = async (jupiter: Jupiter) => {
   const solBalance = await getSolBalanceRaw()
 
   if (solBalance > config.minSolAmountRaw - 30_000_000) {
-    return
+    return null
   }
   const solSwapAmountUi = toUi(config.minSolAmountRaw - solBalance, Decimals.SOL)
   console.log(`Executing SOL re-balance. Amount: ${solSwapAmountUi} SOL`)
@@ -85,7 +114,7 @@ export const checkAndExecuteSolReBalance = async (jupiter: Jupiter) => {
   })()
 
   if (!price) {
-    return
+    return null
   }
 
   const uxdAmountUi = solSwapAmountUi * price
@@ -96,10 +125,29 @@ export const checkAndExecuteSolReBalance = async (jupiter: Jupiter) => {
     slippage: 0.5,
   })
   if (!routesInfos.length) {
-    return
+    return null
   }
-  const [bestRoute] = routesInfos
-  const { execute } = await jupiter.exchange({ routeInfo: bestRoute })
-  await execute()
-  console.log('Successfully executed SOL re-balance.')
+
+  const swapResult = await tryExecuteJupiterSwap(jupiter, routesInfos[0])
+  if (swapResult) {
+    console.log('Successfully executed SOL re-balance.')
+  }
+  return swapResult?.postUxdAmountRaw || null
+}
+
+export const tryReBalance = async ({
+  jupiter,
+  discordChannel,
+  uxdBalanceUi,
+}: UxdReBalanceParams) => {
+  const postUxdReBalanceAmountRaw = await tryExecuteUxdReBalance({
+    uxdBalanceUi,
+    jupiter,
+    discordChannel,
+  })
+  const postSolReBalanceAmountRaw = await tryExecuteSolReBalance(jupiter)
+  if (postSolReBalanceAmountRaw) {
+    return postSolReBalanceAmountRaw
+  }
+  return postUxdReBalanceAmountRaw || null
 }

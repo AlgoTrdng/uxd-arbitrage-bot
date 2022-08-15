@@ -31,7 +31,7 @@ import {
   sendAndConfirmTransaction,
   parseTransactionMeta,
   ParsedTransactionMeta,
-} from '../../helpers/sendTransaction'
+} from '../../helpers/transaction'
 
 export const initUxdClient = async () => {
   const UXD_PROGRAM_ID = new PublicKey('UXD8m9cvwk4RcSxnX2HZ9VudQCEeDH6fRnB4CAP57Dr')

@@ -18,11 +18,11 @@ import {
   executeUxdTransaction,
   initUxdClient,
 } from './core/uxd'
-import { checkAndExecuteSolReBalance, checkAndExecuteUxdReBalance } from './core/reBalance'
+import { tryReBalance } from './core/reBalance'
 import { initDiscord, setActivity } from './logging/discord'
 import { updateStatus } from './logging/status'
 import { logArbEnd, logArbStart } from './logging/helpers'
-import { ParsedTransactionMeta } from './helpers/sendTransaction'
+import { ParsedTransactionMeta } from './helpers/transaction'
 
 type ArbResultSuccess = {
   success: true
@@ -164,31 +164,23 @@ const main = async () => {
     if (!arbResult.success) {
       continue
     }
-    uxdBalanceRaw = arbResult.postArbUxdBalanceRaw
+
     // ---------------
     // Log arb results
     const { postArbUxdBalanceRaw } = arbResult
     const postArbUxdBalanceUi = toUi(postArbUxdBalanceRaw, Decimals.USD)
 
-    const executeReBalances = async () => {
-      await checkAndExecuteUxdReBalance({
-        uxdBalanceUi: postArbUxdBalanceUi,
-        jupiter,
-        discordChannel,
-      })
-      await checkAndExecuteSolReBalance(jupiter)
-    }
-
-    await Promise.all([
+    const [_, postReBalanceUxdAmountRaw] = await Promise.all([
       logArbEnd({
         preArbUxdBalanceUi: uxdBalanceUi,
         postArbUxdBalanceUi,
         discordChannel,
         direction,
       }),
-      // TODO: Update uxd balance after rebalance
-      executeReBalances(),
+      tryReBalance({ jupiter, discordChannel, uxdBalanceUi: postArbUxdBalanceUi }),
     ])
+
+    uxdBalanceRaw = postReBalanceUxdAmountRaw || arbResult.postArbUxdBalanceRaw
   }
 }
 

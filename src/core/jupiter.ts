@@ -1,15 +1,15 @@
 import { Jupiter } from '@jup-ag/core'
-import { ConfirmedTransactionMeta, PublicKey } from '@solana/web3.js'
+import { ConfirmedTransactionMeta, PublicKey, Transaction } from '@solana/web3.js'
 import JSBI from 'jsbi'
 
-import { connection, walletKeypair } from '../config'
+import { connection, secrets, walletKeypair } from '../config'
 import { SOL_MINT, UXD_MINT } from '../constants'
 import {
   ParsedTransactionMeta,
   parseTransactionMeta,
   sendAndConfirmTransaction,
   TransactionResponse,
-} from '../helpers/sendTransaction'
+} from '../helpers/transaction'
 
 export const initJupiter = async () => (
   Jupiter.load({
@@ -73,6 +73,14 @@ type ExecuteJupiterSwapParams = {
   direction: Direction
 }
 
+export const signJupiterTransactions = (transactions: Record<string, null | Transaction>) => {
+  Object.values(transactions).forEach((tx) => {
+    if (tx) {
+      tx.sign(walletKeypair)
+    }
+  })
+}
+
 type AbortFn = () => Promise<boolean>
 
 /* eslint-disable no-redeclare, no-unused-vars */
@@ -96,12 +104,7 @@ export async function executeJupiterSwap(
   })
   const { transactions } = await jupiter.exchange({ routeInfo: bestRoute })
 
-  // Sign
-  Object.values(transactions).forEach((tx) => {
-    if (tx) {
-      tx.sign(walletKeypair)
-    }
-  })
+  signJupiterTransactions(transactions)
 
   // Execute
   if (transactions.setupTransaction) {
