@@ -1,9 +1,10 @@
 import { initializeApp } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { credential } from 'firebase-admin'
 
 import { Direction } from '../core/jupiter'
 import { secrets } from '../config'
+import { round } from '../helpers/amount'
 
 const parseFirebaseAdminCredentials = () => ({
   projectId: secrets.FB_PROJECT_ID,
@@ -20,38 +21,65 @@ const database = getFirestore(app)
 type ArbResultParams = {
   newAmount: number
   oldAmount: number
-  profitBps: number
   direction: Direction
 }
 
-type ArbResultDbDocument = {
+type Trade = {
   executedAt: Date
-  newAmount: number
-  oldAmount: number
+  postArbAmount: number
   profit: number
   type: Direction
 }
 
-export const saveArbResult = async ({
-  newAmount,
-  oldAmount,
-  profitBps,
-  direction,
-}: ArbResultParams) => {
-  if (profitBps === 0) {
-    return
-  }
+export const saveArbResult = (() => {
+  let lastId: number | null = null
 
-  const executedAt = new Date()
-  const docRef = database.doc(
-    `${secrets.FB_COLLECTION_NAME}/${executedAt.getTime().toString()}`,
-  )
-  const document: ArbResultDbDocument = {
-    profit: profitBps,
-    type: direction,
-    executedAt,
+  return async ({
     newAmount,
     oldAmount,
+    direction,
+  }: ArbResultParams) => {
+    const collectionRef = database.collection('uxd-arb-data')
+
+    if (!lastId) {
+      const lastInserted = await collectionRef.orderBy('startTimestamp', 'desc').limit(1).get()
+      if (lastInserted) {
+        lastId = Number(lastInserted.docs[0].id)
+      }
+    }
+
+    const executedAt = new Date()
+    const currentId = new Date(
+      executedAt.getFullYear(),
+      executedAt.getMonth(),
+      executedAt.getDate(),
+    )
+
+    const profit = round(newAmount - oldAmount, 6)
+    const trade: Trade = {
+      postArbAmount: newAmount,
+      type: direction,
+      executedAt,
+      profit,
+    }
+
+    if (currentId.getTime() !== lastId) {
+      await collectionRef.doc(currentId.getTime().toString()).set({
+        startBalance: oldAmount,
+        startTimestamp: currentId,
+        totalProfit: profit,
+        totalTrades: 1,
+        trades: [trade],
+      })
+      lastId = currentId.getTime()
+      return
+    }
+
+    const docRef = collectionRef.doc(lastId.toString())
+    await docRef.update({
+      totalTrades: FieldValue.increment(1),
+      totalProfit: FieldValue.increment(profit),
+      trades: FieldValue.arrayUnion(trade),
+    })
   }
-  await docRef.set(document)
-}
+})()

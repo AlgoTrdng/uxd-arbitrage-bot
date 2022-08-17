@@ -2,7 +2,7 @@ import { Jupiter } from '@jup-ag/core'
 import { ConfirmedTransactionMeta, PublicKey, Transaction } from '@solana/web3.js'
 import JSBI from 'jsbi'
 
-import { connection, secrets, walletKeypair } from '../config'
+import { connection, walletKeypair } from '../config'
 import { SOL_MINT, UXD_MINT } from '../constants'
 import {
   ParsedTransactionMeta,

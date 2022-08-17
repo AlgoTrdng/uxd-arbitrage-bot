@@ -23,7 +23,6 @@ const ENV_SCHEMA = z.object({
   FB_PRIVATE_KEY: requiredString,
   FB_PROJECT_ID: requiredString,
   FB_CLIENT_EMAIL: requiredString,
-  FB_COLLECTION_NAME: requiredString,
 
   STATUS_API: requiredString,
   STATUS_SECRET: requiredString,

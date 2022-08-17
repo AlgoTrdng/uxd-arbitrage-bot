@@ -64,10 +64,9 @@ export const logArbEnd = async ({
       profitBps,
     }),
     saveArbResult({
-      oldAmount: oldAmountRounded,
-      newAmount: newAmountRounded,
+      oldAmount: preArbUxdBalanceUi,
+      newAmount: postArbUxdBalanceUi,
       direction,
-      profitBps,
     }),
   ])
 }
