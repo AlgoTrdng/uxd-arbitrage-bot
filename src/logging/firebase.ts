@@ -54,7 +54,7 @@ export const saveArbResult = (() => {
         executedAt.getFullYear(),
         executedAt.getMonth(),
         executedAt.getDate(),
-      ),
+      ) - 1000 * 60 * 60 * 2,
     )
 
     const profit = round(newAmount - oldAmount, 6)
