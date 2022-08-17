@@ -50,9 +50,11 @@ export const saveArbResult = (() => {
 
     const executedAt = new Date()
     const currentId = new Date(
-      executedAt.getFullYear(),
-      executedAt.getMonth(),
-      executedAt.getDate(),
+      Date.UTC(
+        executedAt.getFullYear(),
+        executedAt.getMonth(),
+        executedAt.getDate(),
+      ),
     )
 
     const profit = round(newAmount - oldAmount, 6)
