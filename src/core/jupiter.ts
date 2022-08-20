@@ -1,10 +1,12 @@
 import { Jupiter } from '@jup-ag/core'
-import { ConfirmedTransactionMeta, PublicKey, Transaction } from '@solana/web3.js'
+import { PublicKey, Transaction } from '@solana/web3.js'
 import JSBI from 'jsbi'
+import { setTimeout } from 'timers/promises'
 
 import { connection, walletKeypair } from '../config'
 import { SOL_MINT, UXD_MINT } from '../constants'
 import {
+  findUxdAmountInfo,
   ParsedTransactionMeta,
   parseTransactionMeta,
   sendAndConfirmTransaction,
@@ -107,36 +109,74 @@ export async function executeJupiterSwap(
   signJupiterTransactions(transactions)
 
   // Execute
-  if (transactions.setupTransaction) {
-    await sendAndConfirmTransaction(transactions.setupTransaction)
+  const forceTx = async (tx: Transaction) => {
+    while (true) {
+      const res = await sendAndConfirmTransaction(tx)
+      if (res.success) {
+        return res.data
+      }
+      await setTimeout(500)
+      if (res.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
+        if (shouldAbort && await shouldAbort()) {
+          return () => null
+        }
+        return () => (
+          executeJupiterSwap({
+            jupiter,
+            direction,
+            amountRaw,
+          }, shouldAbort)
+        )
+      }
+    }
   }
 
-  let swapMeta: ConfirmedTransactionMeta | null = null
-  while (true) {
-    const res = await sendAndConfirmTransaction(transactions.swapTransaction)
+  const {
+    setupTransaction: setupTx,
+    swapTransaction: swapTx,
+    cleanupTransaction: cleanupTx,
+  } = transactions
 
-    if (res.success) {
-      swapMeta = res.data
-      break
+  let setupATARent = 0
+  if (setupTx) {
+    const setupRes = await forceTx(setupTx)
+    if (typeof setupRes === 'function') {
+      return setupRes()
+    }
+    setupATARent = Math.abs(
+      setupRes.postBalances[0] - setupRes.preBalances[0],
+    )
+  }
+
+  const swapRes = await forceTx(swapTx)
+  if (typeof swapRes === 'function') {
+    return swapRes()
+  }
+  const swapMeta = parseTransactionMeta(swapRes)
+
+  if (cleanupTx) {
+    const cleanupRes = await forceTx(cleanupTx)
+    if (typeof cleanupRes === 'function') {
+      return cleanupRes()
     }
 
-    if (res.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
-      if (shouldAbort && await shouldAbort()) {
-        return null
+    (() => {
+      if (cleanupRes.postTokenBalances?.length) {
+        const postUxdBalanceInfo = findUxdAmountInfo(cleanupRes.postTokenBalances)
+        if (postUxdBalanceInfo) {
+          swapMeta.postUxdAmountRaw = Number(postUxdBalanceInfo.uiTokenAmount.amount)
+          return
+        }
       }
 
-      return executeJupiterSwap({
-        jupiter,
-        direction,
-        amountRaw,
-      }, shouldAbort)
-    }
+      const solSwapAmountRaw = Math.abs(
+        cleanupRes.postBalances[0] - cleanupRes.preBalances[0],
+      )
+      // 5000 * 3 -> setup, cleanup and swap
+      swapMeta.solSwapAmountRaw = solSwapAmountRaw - setupATARent - 15000
+    })()
   }
 
-  if (transactions.cleanupTransaction) {
-    await sendAndConfirmTransaction(transactions.cleanupTransaction)
-  }
-
-  return parseTransactionMeta(swapMeta)
+  return swapMeta
 }
 /* eslint-enable no-redeclare, no-unused-vars */

@@ -11,12 +11,12 @@ import { UXD_MINT } from '../constants'
 
 const MAX_CONFIRMATION_TIME = 120_000
 
-const findTokenAmountInfo = (
+export const findUxdAmountInfo = (
   tokenAmountInfos: TokenBalance[],
 ) => (
   tokenAmountInfos.find(({ owner, mint }) => (
     owner === walletKeypair.publicKey.toString() && mint === UXD_MINT.toString()
-  ))!
+  ))
 )
 
 export type ParsedTransactionMeta = {
@@ -33,10 +33,10 @@ export const parseTransactionMeta = (meta: ConfirmedTransactionMeta): ParsedTran
     postBalances,
   } = meta
 
-  const { uiTokenAmount: preUxdAmountInfo } = findTokenAmountInfo(preTokenBalances!)
-  const { uiTokenAmount: postUxdAmountInfo } = findTokenAmountInfo(
+  const { uiTokenAmount: preUxdAmountInfo } = findUxdAmountInfo(preTokenBalances!)!
+  const { uiTokenAmount: postUxdAmountInfo } = findUxdAmountInfo(
     postTokenBalances!,
-  )
+  )!
 
   const preUxdAmountRaw = Number(preUxdAmountInfo.amount)
   const postUxdAmountRaw = Number(postUxdAmountInfo.amount)
