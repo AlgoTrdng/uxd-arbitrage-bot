@@ -1,4 +1,12 @@
-import { PublicKey, Struct, TransactionInstruction } from '@solana/web3.js'
+import {
+  PublicKey,
+  Struct,
+  TransactionInstruction,
+  Signer,
+  Connection,
+  TransactionSignature,
+  ConfirmOptions,
+} from '@solana/web3.js'
 
 declare module '@solana/spl-token' {
   export function getAssociatedTokenAddress(
@@ -45,4 +53,23 @@ declare module '@solana/spl-token' {
   }
 
   export type AccountLayout = Struct<RawAccount>
+
+  export function getAssociatedTokenAddressSync(
+    mint: PublicKey,
+    owner: PublicKey,
+    allowOwnerOffCurve?: boolean,
+    programId?: PublicKey,
+    associatedTokenProgramId?: PublicKey,
+  ): PublicKey
+
+  export function closeAccount(
+    connection: Connection,
+    payer: Signer,
+    account: PublicKey,
+    destination: PublicKey,
+    authority: Signer | PublicKey,
+    multiSigners?: Signer[],
+    confirmOptions?: ConfirmOptions,
+    programId?: PublicKey,
+): Promise<TransactionSignature>
 }

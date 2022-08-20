@@ -133,7 +133,8 @@ export const buildMintRawTransaction = async (
     SystemProgram.transfer({
       fromPubkey: walletKeypair.publicKey,
       toPubkey: collateralATA,
-      lamports: toRaw(inputAmountUi, Decimals.SOL),
+      // TODO: + 0.01 Maybe works idk, needs to be tested
+      lamports: toRaw(inputAmountUi + 0.01, Decimals.SOL),
     }),
     createSyncNativeInstruction(collateralATA),
     await client.createMintWithMangoDepositoryInstruction(

@@ -1,5 +1,6 @@
 import { Jupiter } from '@jup-ag/core'
 import { PublicKey, Transaction } from '@solana/web3.js'
+import { getAssociatedTokenAddressSync, closeAccount } from '@solana/spl-token'
 import JSBI from 'jsbi'
 import { setTimeout } from 'timers/promises'
 
@@ -12,6 +13,7 @@ import {
   sendAndConfirmTransaction,
   TransactionResponse,
 } from '../helpers/transaction'
+import { forceOnError } from '../helpers/forceOnError'
 
 export const initJupiter = async () => (
   Jupiter.load({
@@ -83,6 +85,8 @@ export const signJupiterTransactions = (transactions: Record<string, null | Tran
   })
 }
 
+const wSolATA = getAssociatedTokenAddressSync(SOL_MINT, walletKeypair.publicKey)
+
 type AbortFn = () => Promise<boolean>
 
 /* eslint-disable no-redeclare, no-unused-vars */
@@ -109,13 +113,30 @@ export async function executeJupiterSwap(
   signJupiterTransactions(transactions)
 
   // Execute
-  const forceTx = async (tx: Transaction) => {
+  const forceTx = async (tx: Transaction, isSwap = false) => {
     while (true) {
       const res = await sendAndConfirmTransaction(tx)
       if (res.success) {
         return res.data
       }
       await setTimeout(500)
+
+      if (isSwap) {
+        // TODO: Don't use Serum Amm
+        const wSolBalance = await connection.getTokenAccountBalance(wSolATA)
+        if (Number(wSolBalance.value.amount) > 0) {
+          await forceOnError(
+            () => closeAccount(
+              connection,
+              walletKeypair,
+              wSolATA,
+              walletKeypair.publicKey,
+              walletKeypair,
+            ),
+          )
+        }
+      }
+
       if (res.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
         if (shouldAbort && await shouldAbort()) {
           return () => null
@@ -148,7 +169,7 @@ export async function executeJupiterSwap(
     )
   }
 
-  const swapRes = await forceTx(swapTx)
+  const swapRes = await forceTx(swapTx, true)
   if (typeof swapRes === 'function') {
     return swapRes()
   }
