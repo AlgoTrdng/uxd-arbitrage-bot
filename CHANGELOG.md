@@ -3,6 +3,19 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [2.1.0] - 20.8.2022
+
+### Updated
+
+- Sending daily aggregate values to database
+
+### Fix
+
+- Updating UXD balance after SOL and UXD re-balancing
+- Swapping remaining SOL after `mint` arbitrage
+- Parsing responses from Jupiter setup and cleanup transactions
+
+
 ## [2.0.1] - 12.8.2022
 
 - Getting UXD balance from TX response - fixes the old balances from fetching token balance

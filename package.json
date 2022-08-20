@@ -2,7 +2,7 @@
   "name": "uxd-arb-bot",
   "author": "dmc0125",
   "license": "MIT",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "build:w": "rm -rf dist && tsc -w",
