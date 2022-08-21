@@ -1,6 +1,5 @@
 import { Jupiter } from '@jup-ag/core'
 import { PublicKey, Transaction } from '@solana/web3.js'
-import { getAssociatedTokenAddressSync, closeAccount } from '@solana/spl-token'
 import JSBI from 'jsbi'
 import { setTimeout } from 'timers/promises'
 
@@ -13,7 +12,6 @@ import {
   sendAndConfirmTransaction,
   TransactionResponse,
 } from '../helpers/transaction'
-import { forceOnError } from '../helpers/forceOnError'
 
 export const initJupiter = async () => (
   Jupiter.load({
@@ -68,7 +66,19 @@ export const fetchBestJupiterRoute = async ({
     amount: JSBI.BigInt(amountRaw),
     slippage: 0.5,
   })
-  return result.routesInfos[0]
+
+  const route = (() => {
+    for (let i = 0; i < result.routesInfos.length; i += 1) {
+      if (result.routesInfos[i].marketInfos[0].amm.label !== 'Serum') {
+        return result.routesInfos[i]
+      }
+    }
+    // Should realistically never happen
+    console.log('Non existent route without serum amm')
+    return null
+  })()
+
+  return route!
 }
 
 type ExecuteJupiterSwapParams = {
@@ -84,8 +94,6 @@ export const signJupiterTransactions = (transactions: Record<string, null | Tran
     }
   })
 }
-
-const wSolATA = getAssociatedTokenAddressSync(SOL_MINT, walletKeypair.publicKey)
 
 type AbortFn = () => Promise<boolean>
 
@@ -113,29 +121,13 @@ export async function executeJupiterSwap(
   signJupiterTransactions(transactions)
 
   // Execute
-  const forceTx = async (tx: Transaction, isSwap = false) => {
+  const forceTx = async (tx: Transaction) => {
     while (true) {
       const res = await sendAndConfirmTransaction(tx)
       if (res.success) {
         return res.data
       }
       await setTimeout(500)
-
-      if (isSwap) {
-        // TODO: Don't use Serum Amm
-        const wSolBalance = await connection.getTokenAccountBalance(wSolATA)
-        if (Number(wSolBalance.value.amount) > 0) {
-          await forceOnError(
-            () => closeAccount(
-              connection,
-              walletKeypair,
-              wSolATA,
-              walletKeypair.publicKey,
-              walletKeypair,
-            ),
-          )
-        }
-      }
 
       if (res.err === TransactionResponse.BLOCK_HEIGHT_EXCEEDED) {
         if (shouldAbort && await shouldAbort()) {
@@ -169,7 +161,7 @@ export async function executeJupiterSwap(
     )
   }
 
-  const swapRes = await forceTx(swapTx, true)
+  const swapRes = await forceTx(swapTx)
   if (typeof swapRes === 'function') {
     return swapRes()
   }

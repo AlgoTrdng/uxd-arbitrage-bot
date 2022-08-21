@@ -44,6 +44,15 @@ const tryExecuteJupiterSwap = async (jupiter: Jupiter, bestRoute: RouteInfo) => 
   return null
 }
 
+const findBestNonSerumRoute = (routesInfos: RouteInfo[]) => {
+  for (let i = 0; i < routesInfos.length; i += 1) {
+    if (routesInfos[i].marketInfos[0].amm.label !== 'Serum') {
+      return routesInfos[i]
+    }
+  }
+  return null
+}
+
 type UxdReBalanceParams = {
   uxdBalanceUi: number
   discordChannel: TextChannel
@@ -71,8 +80,12 @@ export const tryExecuteUxdReBalance = async ({
   if (!routesInfos.length) {
     return null
   }
+  const bestRoute = findBestNonSerumRoute(routesInfos)
+  if (!bestRoute) {
+    return null
+  }
 
-  const swapResult = await tryExecuteJupiterSwap(jupiter, routesInfos[0])
+  const swapResult = await tryExecuteJupiterSwap(jupiter, bestRoute)
 
   if (swapResult) {
     const postSwapUxdAmountUi = toUi(swapResult.postUxdAmountRaw, Decimals.USD)
@@ -127,8 +140,12 @@ export const tryExecuteSolReBalance = async (jupiter: Jupiter) => {
   if (!routesInfos.length) {
     return null
   }
+  const bestRoute = findBestNonSerumRoute(routesInfos)
+  if (!bestRoute) {
+    return null
+  }
 
-  const swapResult = await tryExecuteJupiterSwap(jupiter, routesInfos[0])
+  const swapResult = await tryExecuteJupiterSwap(jupiter, bestRoute)
   if (swapResult) {
     console.log('Successfully executed SOL re-balance.')
   }
