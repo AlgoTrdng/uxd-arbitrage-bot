@@ -13,26 +13,30 @@ const requiredString = z.string().min(1)
 
 // -------------------
 // Validate ENV config
-const ENV_SCHEMA = z.object({
-  SOL_RPC_ENDPOINT: requiredString,
-  SOL_PRIVATE_KEY: requiredString,
-
-  DISCORD_CHANNEL_ID: requiredString,
-  DISCORD_SECRET: requiredString,
-
-  FB_PRIVATE_KEY: requiredString,
-  FB_PROJECT_ID: requiredString,
-  FB_CLIENT_EMAIL: requiredString,
-
-  STATUS_API: requiredString,
-  STATUS_SECRET: requiredString,
-})
-
 const {
   SOL_PRIVATE_KEY,
   SOL_RPC_ENDPOINT,
   ...secrets
 } = (() => {
+  const ENV_SCHEMA = z.object({
+    APP_ENV: z.enum(['production', 'development']),
+
+    SOL_RPC_ENDPOINT: requiredString,
+    SOL_PRIVATE_KEY: requiredString,
+
+    DISCORD_CHANNEL_ID: requiredString,
+    DISCORD_SECRET: requiredString,
+
+    FB_PRIVATE_KEY: requiredString,
+    FB_PROJECT_ID: requiredString,
+    FB_CLIENT_EMAIL: requiredString,
+
+    REDIS_URL: z.string().optional(),
+  }).refine(
+    ({ APP_ENV, REDIS_URL }) => !(APP_ENV === 'production' && !REDIS_URL?.length),
+    { message: 'REDIS_URL must be defined in production' },
+  )
+
   const result = ENV_SCHEMA.safeParse(process.env)
 
   if (!result.success) {
@@ -80,12 +84,7 @@ const {
     production: AppConfig
   }
 
-  if (!process.env.APP_ENV) {
-    throw Error('APP_ENV environment variable was not specified')
-  }
-  const appEnv = process.env.APP_ENV as 'development' | 'production'
-
-  const result = configSchema.safeParse(parsed[appEnv])
+  const result = configSchema.safeParse(parsed[secrets.APP_ENV])
   if (!result.success) {
     throw result.error
   }

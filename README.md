@@ -22,8 +22,7 @@ FB_PRIVATE_KEY=
 FB_PROJECT_ID=
 FB_CLIENT_EMAIL=
 
-STATUS_API=
-STATUS_SECRET=
+REDIS_URL=
 ```
 
 ### Set app config in `app.config.json`
