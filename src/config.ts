@@ -30,6 +30,7 @@ const {
     FB_PRIVATE_KEY: requiredString,
     FB_PROJECT_ID: requiredString,
     FB_CLIENT_EMAIL: requiredString,
+    FB_COLLECTION: requiredString,
 
     REDIS_URL: z.string().optional(),
   }).refine(

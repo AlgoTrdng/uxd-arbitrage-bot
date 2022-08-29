@@ -39,7 +39,7 @@ export const saveArbResult = (() => {
     oldAmount,
     direction,
   }: ArbResultParams) => {
-    const collectionRef = database.collection('uxd-arb-data')
+    const collectionRef = database.collection(secrets.FB_COLLECTION)
 
     if (!lastId) {
       const lastInserted = await collectionRef.orderBy('startTimestamp', 'desc').limit(1).get()
