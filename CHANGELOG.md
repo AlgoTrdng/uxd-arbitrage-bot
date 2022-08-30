@@ -3,6 +3,13 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [2.2.0] - 30.8.2022
+
+### Updated
+
+- Stopped using Serum because of Jupiter bug
+- Using redis
+
 ## [2.1.0] - 20.8.2022
 
 ### Updated
