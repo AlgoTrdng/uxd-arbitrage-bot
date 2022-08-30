@@ -3,6 +3,12 @@
 - All notable changes will be documented in this file
 - Date is following format DD.MM.YYYY
 
+## [2.2.1] - 30.8.2022
+
+### Added
+
+- Reading DIRECTION env variable to set arb direction
+
 ## [2.2.0] - 30.8.2022
 
 ### Updated

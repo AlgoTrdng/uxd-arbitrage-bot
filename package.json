@@ -2,14 +2,18 @@
   "name": "uxd-arb-bot",
   "author": "dmc0125",
   "license": "MIT",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "build:w": "rm -rf dist && tsc -w",
     "start:dev": "APP_ENV=development node dist/index.js",
     "start:prod": "APP_ENV=production node dist/index.js",
     "pm2:dev": "APP_ENV=development pm2 start pm2.config.js",
-    "pm2:prod": "APP_ENV=production pm2 start pm2.config.js"
+    "pm2:dev:redeem": "DIRECTION=redemption APP_ENV=development pm2 start pm2.config.js",
+    "pm2:dev:mint": "DIRECTION=mint APP_ENV=development pm2 start pm2.config.js",
+    "pm2:prod": "APP_ENV=production pm2 start pm2.config.js",
+    "pm2:prod:redeem": "DIRECTION=redemption APP_ENV=production pm2 start pm2.config.js",
+    "pm2:prod:mint": "DIRECTION=mint APP_ENV=production pm2 start pm2.config.js"
   },
   "devDependencies": {
     "@types/node": "^18.0.3",

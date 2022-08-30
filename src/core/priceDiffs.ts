@@ -6,6 +6,7 @@ import { floor, toRaw, toUi } from '../helpers/amount'
 import {
   fetchBestJupiterRoute,
   Directions,
+  Direction,
 } from './jupiter'
 import { Orderbook, OrderbookSideGetter } from './uxd/mango'
 import { simulateMint, simulateRedemption } from './uxd/simulateSwap'
@@ -125,12 +126,14 @@ export type UpdatePriceDiffsAndFindArb = {
   getOrderbookSide: OrderbookSideGetter
   jupiter: Jupiter
   priceDiffsMAs: ReturnType<typeof initPriceDiffsMAs>
+  direction?: Direction
 }
 
 export const updatePriceDiffsAndFindArb = async ({
   getOrderbookSide,
   jupiter,
   priceDiffsMAs,
+  direction,
 }: UpdatePriceDiffsAndFindArb) => {
   const execute = async (
     i: number,
@@ -138,20 +141,35 @@ export const updatePriceDiffsAndFindArb = async ({
   ) => {
     // Update price diffs
     const { inputAmount: inputAmountUi } = priceDiffsMAs[i]
-    const redemptionPriceDiff = await getRedemptionPriceDifference({
-      orderbook: getOrderbookSide('asks'),
-      jupiter,
-      inputAmountUi,
-      forceFetch,
-    })
-    const mintPriceDiff = await getMintPriceDifference({
-      orderbook: getOrderbookSide('bids'),
-      jupiter,
-      inputAmountUi,
-    })
 
-    priceDiffsMAs[i].redemption.addPriceDiff(redemptionPriceDiff)
-    priceDiffsMAs[i].mint.addPriceDiff(mintPriceDiff)
+    const redemptionPriceDiff = await (async () => {
+      if (direction === Directions.REDEMPTION || !direction) {
+        const _redemptionPriceDiff = await getRedemptionPriceDifference({
+          orderbook: getOrderbookSide('asks'),
+          jupiter,
+          inputAmountUi,
+          forceFetch,
+        })
+        priceDiffsMAs[i].redemption.addPriceDiff(_redemptionPriceDiff)
+        return _redemptionPriceDiff
+      }
+
+      return -100
+    })()
+
+    const mintPriceDiff = await (async () => {
+      if (direction === Directions.MINT || !direction) {
+        const _mintPriceDiff = await getMintPriceDifference({
+          orderbook: getOrderbookSide('bids'),
+          jupiter,
+          inputAmountUi,
+        })
+        priceDiffsMAs[i].mint.addPriceDiff(_mintPriceDiff)
+        return _mintPriceDiff
+      }
+
+      return -100
+    })()
 
     if (i === 0) {
       console.log({
@@ -173,8 +191,10 @@ export const updatePriceDiffsAndFindArb = async ({
       return null
     }
 
-    const direction = redemptionPriceDiff > mintPriceDiff ? Directions.REDEMPTION : Directions.MINT
-    const priceDiffMA = priceDiffsMAs[i][direction].ma
+    const arbDirection = redemptionPriceDiff > mintPriceDiff
+      ? Directions.REDEMPTION
+      : Directions.MINT
+    const priceDiffMA = priceDiffsMAs[i][arbDirection].ma
     if (!priceDiffMA || priceDiffMA < config.minMaPriceDiff) {
       return null
     }
@@ -182,7 +202,7 @@ export const updatePriceDiffsAndFindArb = async ({
     return {
       arbOpportunity: {
         inputAmountUi,
-        direction,
+        direction: arbDirection,
       },
       priceDiffs: {
         mint: mintPriceDiff,

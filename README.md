@@ -64,7 +64,7 @@ REDIS_URL=
 }
 ```
 
-## Start bot
+## Start bot with both arb directions
 
 - Development
 ```sh
@@ -74,4 +74,10 @@ npm run start:dev
 - Production
 ```sh
 npm run start:prod
+```
+
+### One direction only
+
+```sh
+npm run start:(dev or prod):(redeem or mint)
 ```

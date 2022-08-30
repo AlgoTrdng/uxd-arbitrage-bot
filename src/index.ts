@@ -6,7 +6,12 @@ import {
   initPriceDiffsMAs,
   updatePriceDiffsAndFindArb,
 } from './core/priceDiffs'
-import { Directions, executeJupiterSwap, initJupiter } from './core/jupiter'
+import {
+  Direction,
+  Directions,
+  executeJupiterSwap,
+  initJupiter,
+} from './core/jupiter'
 import { subscribeToMangoAsks } from './core/uxd/mango'
 import { toRaw, toUi, floor } from './helpers/amount'
 import { Decimals } from './constants'
@@ -34,6 +39,17 @@ type ArbResultAborted = {
 }
 
 const main = async () => {
+  const directionArg = process.env.DIRECTION as undefined | Direction
+
+  if (
+    directionArg
+    && !Object.keys(Directions).includes(directionArg.toUpperCase())
+  ) {
+    throw Error(`Invalid direction argument. Allowed <${
+      Object.values(Directions).map((d) => d.toLowerCase()).join(', ')
+    }>`)
+  }
+
   const { channel: discordChannel, client: discordClient } = await initDiscord()
 
   const jupiter = await initJupiter()
@@ -52,6 +68,7 @@ const main = async () => {
       jupiter,
       priceDiffsMAs: priceDiffs,
       getOrderbookSide,
+      direction: directionArg,
     })
 
     console.log({
